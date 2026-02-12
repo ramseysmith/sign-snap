@@ -1,0 +1,158 @@
+import {
+  readAsStringAsync,
+  writeAsStringAsync,
+  cacheDirectory,
+  EncodingType,
+} from 'expo-file-system/legacy';
+import { PDFDocument } from 'pdf-lib';
+import { decode as base64Decode, encode as base64Encode } from 'base-64';
+import { PdfDimensions, ViewDimensions, SignaturePlacement } from '../types';
+import { uiToPdfCoordinates } from '../utils/helpers';
+
+// Polyfill for atob/btoa which pdf-lib needs
+if (typeof global.atob === 'undefined') {
+  global.atob = base64Decode;
+}
+if (typeof global.btoa === 'undefined') {
+  global.btoa = base64Encode;
+}
+
+export async function getPdfPageCount(pdfUri: string): Promise<number> {
+  try {
+    const pdfBase64 = await readAsStringAsync(pdfUri, {
+      encoding: EncodingType.Base64,
+    });
+    const pdfBytes = Uint8Array.from(atob(pdfBase64), (c) => c.charCodeAt(0));
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+    return pdfDoc.getPageCount();
+  } catch (error) {
+    console.error('Error getting PDF page count:', error);
+    throw new Error('Failed to read PDF file');
+  }
+}
+
+export async function getPdfPageDimensions(
+  pdfUri: string,
+  pageIndex: number = 0
+): Promise<PdfDimensions> {
+  try {
+    const pdfBase64 = await readAsStringAsync(pdfUri, {
+      encoding: EncodingType.Base64,
+    });
+    const pdfBytes = Uint8Array.from(atob(pdfBase64), (c) => c.charCodeAt(0));
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+    const page = pdfDoc.getPage(pageIndex);
+    const { width, height } = page.getSize();
+    return { width, height };
+  } catch (error) {
+    console.error('Error getting PDF dimensions:', error);
+    throw new Error('Failed to read PDF dimensions');
+  }
+}
+
+export async function embedSignatureOnPdf(
+  pdfUri: string,
+  signatureBase64: string,
+  placement: SignaturePlacement,
+  viewDimensions: ViewDimensions
+): Promise<string> {
+  try {
+    // Read the PDF
+    const pdfBase64 = await readAsStringAsync(pdfUri, {
+      encoding: EncodingType.Base64,
+    });
+    const pdfBytes = Uint8Array.from(atob(pdfBase64), (c) => c.charCodeAt(0));
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+
+    // Get the target page
+    const page = pdfDoc.getPage(placement.pageIndex);
+    const pdfDimensions = page.getSize();
+
+    // Convert signature base64 to bytes (remove data URI prefix if present)
+    const signatureData = signatureBase64.replace(/^data:image\/\w+;base64,/, '');
+    const signatureBytes = Uint8Array.from(atob(signatureData), (c) => c.charCodeAt(0));
+
+    // Embed the PNG image
+    const signatureImage = await pdfDoc.embedPng(signatureBytes);
+
+    // Convert UI coordinates to PDF coordinates
+    const pdfCoords = uiToPdfCoordinates(
+      placement.x,
+      placement.y,
+      placement.width,
+      placement.height,
+      viewDimensions,
+      pdfDimensions
+    );
+
+    // Draw the signature on the page
+    page.drawImage(signatureImage, {
+      x: pdfCoords.x,
+      y: pdfCoords.y,
+      width: pdfCoords.width,
+      height: pdfCoords.height,
+    });
+
+    // Save the modified PDF
+    const modifiedPdfBytes = await pdfDoc.save();
+    const modifiedPdfBase64 = btoa(
+      String.fromCharCode.apply(null, Array.from(modifiedPdfBytes))
+    );
+
+    // Write to a new file
+    const outputUri = `${cacheDirectory}signed_${Date.now()}.pdf`;
+    await writeAsStringAsync(outputUri, modifiedPdfBase64, {
+      encoding: EncodingType.Base64,
+    });
+
+    return outputUri;
+  } catch (error) {
+    console.error('Error embedding signature:', error);
+    throw new Error('Failed to embed signature in PDF');
+  }
+}
+
+export async function imagesToPdf(imageUris: string[]): Promise<string> {
+  try {
+    const pdfDoc = await PDFDocument.create();
+
+    for (const imageUri of imageUris) {
+      // Read the image
+      const imageBase64 = await readAsStringAsync(imageUri, {
+        encoding: EncodingType.Base64,
+      });
+      const imageBytes = Uint8Array.from(atob(imageBase64), (c) => c.charCodeAt(0));
+
+      // Determine image type and embed accordingly
+      let image;
+      if (imageUri.toLowerCase().endsWith('.png')) {
+        image = await pdfDoc.embedPng(imageBytes);
+      } else {
+        image = await pdfDoc.embedJpg(imageBytes);
+      }
+
+      // Create a page with the image dimensions
+      const page = pdfDoc.addPage([image.width, image.height]);
+      page.drawImage(image, {
+        x: 0,
+        y: 0,
+        width: image.width,
+        height: image.height,
+      });
+    }
+
+    // Save the PDF
+    const pdfBytes = await pdfDoc.save();
+    const pdfBase64 = btoa(String.fromCharCode.apply(null, Array.from(pdfBytes)));
+
+    const outputUri = `${cacheDirectory}scanned_${Date.now()}.pdf`;
+    await writeAsStringAsync(outputUri, pdfBase64, {
+      encoding: EncodingType.Base64,
+    });
+
+    return outputUri;
+  } catch (error) {
+    console.error('Error creating PDF from images:', error);
+    throw new Error('Failed to create PDF from images');
+  }
+}
