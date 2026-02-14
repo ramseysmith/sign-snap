@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
 import { PurchasesPackage } from 'react-native-purchases';
 import { PaywallScreenProps } from '../types';
 import { useSubscriptionStore } from '../store/useSubscriptionStore';
@@ -21,12 +22,6 @@ import { PREMIUM_BENEFITS } from '../config/monetization';
 import ActionButton from '../components/ActionButton';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../utils/constants';
 
-const BENEFIT_ICONS: Record<string, string> = {
-  unlimited: 'infinity',
-  'no-ads': 'block',
-  priority: 'star',
-};
-
 export default function PaywallScreen({ navigation }: PaywallScreenProps) {
   const {
     availablePackages,
@@ -39,9 +34,11 @@ export default function PaywallScreen({ navigation }: PaywallScreenProps) {
   const [selectedPackage, setSelectedPackage] =
     useState<PurchasesPackage | null>(null);
   const [isLoadingPackages, setIsLoadingPackages] = useState(true);
+  const [useRevenueCatUI, setUseRevenueCatUI] = useState(true);
 
   useEffect(() => {
     loadPackages();
+    presentRevenueCatPaywall();
   }, []);
 
   useEffect(() => {
@@ -60,6 +57,33 @@ export default function PaywallScreen({ navigation }: PaywallScreenProps) {
       navigation.goBack();
     }
   }, [isPremium, navigation]);
+
+  const presentRevenueCatPaywall = async () => {
+    try {
+      // Try to present RevenueCat's native paywall
+      const paywallResult = await RevenueCatUI.presentPaywall();
+
+      switch (paywallResult) {
+        case PAYWALL_RESULT.PURCHASED:
+        case PAYWALL_RESULT.RESTORED:
+          // Success - navigation will happen via isPremium effect
+          break;
+        case PAYWALL_RESULT.CANCELLED:
+        case PAYWALL_RESULT.NOT_PRESENTED:
+          // User cancelled or paywall couldn't be presented
+          // Fall back to custom UI
+          setUseRevenueCatUI(false);
+          break;
+        case PAYWALL_RESULT.ERROR:
+          console.log('RevenueCat paywall error, falling back to custom UI');
+          setUseRevenueCatUI(false);
+          break;
+      }
+    } catch (error) {
+      console.log('RevenueCat UI not available, using custom paywall:', error);
+      setUseRevenueCatUI(false);
+    }
+  };
 
   const loadPackages = async () => {
     setIsLoadingPackages(true);
@@ -141,6 +165,16 @@ export default function PaywallScreen({ navigation }: PaywallScreenProps) {
     }
   };
 
+  // If RevenueCat UI is being used, show loading while it presents
+  if (useRevenueCatUI) {
+    return (
+      <View style={styles.loadingFullScreen}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
+
+  // Custom fallback UI
   return (
     <View style={styles.container}>
       <ScrollView
@@ -260,10 +294,44 @@ export default function PaywallScreen({ navigation }: PaywallScreenProps) {
   );
 }
 
+/**
+ * Present RevenueCat paywall directly (can be called from anywhere)
+ */
+export async function presentPaywall(): Promise<boolean> {
+  try {
+    const result = await RevenueCatUI.presentPaywall();
+    return result === PAYWALL_RESULT.PURCHASED || result === PAYWALL_RESULT.RESTORED;
+  } catch (error) {
+    console.error('Failed to present paywall:', error);
+    return false;
+  }
+}
+
+/**
+ * Present RevenueCat paywall if user doesn't have entitlement
+ */
+export async function presentPaywallIfNeeded(): Promise<boolean> {
+  try {
+    const result = await RevenueCatUI.presentPaywallIfNeeded({
+      requiredEntitlementIdentifier: 'SignSnap Premium',
+    });
+    return result === PAYWALL_RESULT.PURCHASED || result === PAYWALL_RESULT.RESTORED;
+  } catch (error) {
+    console.error('Failed to present paywall:', error);
+    return false;
+  }
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  loadingFullScreen: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scrollView: {
     flex: 1,

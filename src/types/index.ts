@@ -53,6 +53,7 @@ export type RootStackParamList = {
   };
   Documents: undefined;
   Paywall: undefined;
+  CustomerCenter: undefined;
 };
 
 export type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
@@ -66,6 +67,7 @@ export type PlaceSignatureScreenProps = NativeStackScreenProps<RootStackParamLis
 export type FinalPreviewScreenProps = NativeStackScreenProps<RootStackParamList, 'FinalPreview'>;
 export type DocumentsScreenProps = NativeStackScreenProps<RootStackParamList, 'Documents'>;
 export type PaywallScreenProps = NativeStackScreenProps<RootStackParamList, 'Paywall'>;
+export type CustomerCenterScreenProps = NativeStackScreenProps<RootStackParamList, 'CustomerCenter'>;
 
 export interface SignaturePlacement {
   x: number;

@@ -1,14 +1,13 @@
 import { Platform } from 'react-native';
 
 // RevenueCat Configuration
-// Replace these with your actual RevenueCat API keys from the dashboard
 export const REVENUECAT_CONFIG = {
   apiKey: Platform.select({
-    ios: 'YOUR_REVENUECAT_IOS_API_KEY',
-    android: 'YOUR_REVENUECAT_ANDROID_API_KEY',
-    default: 'YOUR_REVENUECAT_IOS_API_KEY',
+    ios: 'test_twKLQWNtCZOtmiEAPZhzQyKfwON',
+    android: 'test_twKLQWNtCZOtmiEAPZhzQyKfwON',
+    default: 'test_twKLQWNtCZOtmiEAPZhzQyKfwON',
   }) as string,
-  entitlementId: 'premium',
+  entitlementId: 'SignSnap Premium',
   offeringId: 'default',
 };
 
@@ -20,27 +19,26 @@ export const PRODUCT_IDS = {
 } as const;
 
 // AdMob Configuration
-// Replace these with your actual AdMob IDs from the dashboard
 export const ADMOB_CONFIG = {
-  // App IDs (configured in app.json)
+  // App IDs
   appId: Platform.select({
-    ios: 'ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX',
-    android: 'ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX',
-    default: 'ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX',
+    ios: 'ca-app-pub-8327362355420246~7021937717',
+    android: 'ca-app-pub-8327362355420246~7021937717',
+    default: 'ca-app-pub-8327362355420246~7021937717',
   }) as string,
 
   // Banner Ad Unit IDs
   bannerAdUnitId: Platform.select({
-    ios: 'ca-app-pub-3940256099942544/2934735716', // Test ID
-    android: 'ca-app-pub-3940256099942544/6300978111', // Test ID
-    default: 'ca-app-pub-3940256099942544/6300978111',
+    ios: 'ca-app-pub-8327362355420246/9512369685',
+    android: 'ca-app-pub-8327362355420246/9512369685',
+    default: 'ca-app-pub-8327362355420246/9512369685',
   }) as string,
 
   // Interstitial Ad Unit IDs
   interstitialAdUnitId: Platform.select({
-    ios: 'ca-app-pub-3940256099942544/4411468910', // Test ID
-    android: 'ca-app-pub-3940256099942544/1033173712', // Test ID
-    default: 'ca-app-pub-3940256099942544/1033173712',
+    ios: 'ca-app-pub-8327362355420246/8199288012',
+    android: 'ca-app-pub-8327362355420246/8199288012',
+    default: 'ca-app-pub-8327362355420246/8199288012',
   }) as string,
 };
 

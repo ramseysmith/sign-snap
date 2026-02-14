@@ -1,0 +1,93 @@
+export default {
+  expo: {
+    name: 'SignSnap',
+    slug: 'sign-snap',
+    version: '1.0.0',
+    orientation: 'portrait',
+    icon: './assets/icon.png',
+    userInterfaceStyle: 'dark',
+    newArchEnabled: true,
+    splash: {
+      image: './assets/splash-icon.png',
+      resizeMode: 'contain',
+      backgroundColor: '#0F0F1A',
+    },
+    ios: {
+      bundleIdentifier: 'com.signsnap.app',
+      supportsTablet: true,
+      infoPlist: {
+        ITSAppUsesNonExemptEncryption: false,
+        NSCameraUsageDescription:
+          'This app uses the camera to scan documents for signing.',
+        NSPhotoLibraryUsageDescription:
+          'This app accesses your photos to import documents for signing.',
+        SKAdNetworkItems: [
+          { SKAdNetworkIdentifier: 'cstr6suwn9.skadnetwork' },
+          { SKAdNetworkIdentifier: '4fzdc2evr5.skadnetwork' },
+          { SKAdNetworkIdentifier: '2fnua5tdw4.skadnetwork' },
+          { SKAdNetworkIdentifier: 'ydx93a7ass.skadnetwork' },
+          { SKAdNetworkIdentifier: 'p78axxw29g.skadnetwork' },
+          { SKAdNetworkIdentifier: 'v72qych5uu.skadnetwork' },
+          { SKAdNetworkIdentifier: 'ludvb6z3bs.skadnetwork' },
+          { SKAdNetworkIdentifier: 'cp8zw746q7.skadnetwork' },
+          { SKAdNetworkIdentifier: 'c6k4g5qg8m.skadnetwork' },
+          { SKAdNetworkIdentifier: 's39g8k73mm.skadnetwork' },
+          { SKAdNetworkIdentifier: '3qy4746246.skadnetwork' },
+          { SKAdNetworkIdentifier: '3sh42y64q3.skadnetwork' },
+          { SKAdNetworkIdentifier: 'f38h382jlk.skadnetwork' },
+          { SKAdNetworkIdentifier: 'hs6bdukanm.skadnetwork' },
+          { SKAdNetworkIdentifier: 'prcb7njmu6.skadnetwork' },
+          { SKAdNetworkIdentifier: 'wzmmz9fp6w.skadnetwork' },
+          { SKAdNetworkIdentifier: 'yclnxrl5pm.skadnetwork' },
+          { SKAdNetworkIdentifier: '4468km3ulz.skadnetwork' },
+          { SKAdNetworkIdentifier: 't38b2kh725.skadnetwork' },
+          { SKAdNetworkIdentifier: '7ug5zh24hu.skadnetwork' },
+          { SKAdNetworkIdentifier: '9rd848q2bz.skadnetwork' },
+          { SKAdNetworkIdentifier: 'n6fk4nfna4.skadnetwork' },
+          { SKAdNetworkIdentifier: 'kbd757ywx3.skadnetwork' },
+          { SKAdNetworkIdentifier: '9t245vhmpl.skadnetwork' },
+          { SKAdNetworkIdentifier: 'av6w8kgt66.skadnetwork' },
+          { SKAdNetworkIdentifier: 'tl55sbb4fm.skadnetwork' },
+          { SKAdNetworkIdentifier: '8s468mfl3y.skadnetwork' },
+          { SKAdNetworkIdentifier: 'glqzh8vber.skadnetwork' },
+          { SKAdNetworkIdentifier: 'ppxm28t8ap.skadnetwork' },
+        ],
+      },
+    },
+    android: {
+      package: 'com.signsnap.app',
+      adaptiveIcon: {
+        foregroundImage: './assets/adaptive-icon.png',
+        backgroundColor: '#0F0F1A',
+      },
+      edgeToEdgeEnabled: true,
+      predictiveBackGestureEnabled: false,
+      permissions: [
+        'android.permission.CAMERA',
+        'android.permission.READ_EXTERNAL_STORAGE',
+        'android.permission.WRITE_EXTERNAL_STORAGE',
+        'com.google.android.gms.permission.AD_ID',
+      ],
+    },
+    web: {
+      favicon: './assets/favicon.png',
+    },
+    plugins: [
+      'expo-camera',
+      'expo-document-picker',
+      'expo-font',
+      [
+        'react-native-google-mobile-ads',
+        {
+          androidAppId: 'ca-app-pub-8327362355420246~7021937717',
+          iosAppId: 'ca-app-pub-8327362355420246~7021937717',
+        },
+      ],
+    ],
+    extra: {
+      eas: {
+        projectId: '18a5f839-8f93-45db-8cc6-741ad9317bef',
+      },
+    },
+  },
+};

@@ -15,6 +15,7 @@ import PlaceSignatureScreen from '../screens/PlaceSignatureScreen';
 import FinalPreviewScreen from '../screens/FinalPreviewScreen';
 import DocumentsScreen from '../screens/DocumentsScreen';
 import PaywallScreen from '../screens/PaywallScreen';
+import CustomerCenterScreen from '../screens/CustomerCenterScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -105,6 +106,13 @@ export default function AppNavigator() {
           options={{
             title: 'Premium',
             presentation: 'modal',
+          }}
+        />
+        <Stack.Screen
+          name="CustomerCenter"
+          component={CustomerCenterScreen}
+          options={{
+            title: 'Subscription',
           }}
         />
       </Stack.Navigator>

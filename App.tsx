@@ -1,8 +1,8 @@
 import 'react-native-gesture-handler';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet, View, ActivityIndicator, Text } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import { DancingScript_400Regular } from '@expo-google-fonts/dancing-script';
 import { GreatVibes_400Regular } from '@expo-google-fonts/great-vibes';
@@ -10,11 +10,13 @@ import { Pacifico_400Regular } from '@expo-google-fonts/pacifico';
 import { Allura_400Regular } from '@expo-google-fonts/allura';
 import { Sacramento_400Regular } from '@expo-google-fonts/sacramento';
 import AppNavigator from './src/navigation/AppNavigator';
+import AnimatedSplash from './src/components/AnimatedSplash';
 import { COLORS } from './src/utils/constants';
-import { initializePurchases } from './src/services/purchaseService';
-import { initializeAds } from './src/services/adService';
 
 export default function App() {
+  const [showSplash, setShowSplash] = useState(true);
+  const [isReady, setIsReady] = useState(false);
+
   const [fontsLoaded] = useFonts({
     DancingScript: DancingScript_400Regular,
     GreatVibes: GreatVibes_400Regular,
@@ -24,21 +26,41 @@ export default function App() {
   });
 
   useEffect(() => {
-    // Initialize monetization services
-    const initializeMonetization = async () => {
-      await Promise.all([
-        initializePurchases(),
-        initializeAds(),
-      ]);
+    const initialize = async () => {
+      try {
+        // Lazy load and initialize monetization services
+        // This prevents crashes if native modules have issues
+        const { initializePurchases } = await import('./src/services/purchaseService');
+        const { initializeAds } = await import('./src/services/adService');
+
+        // Initialize in parallel but don't fail if one fails
+        await Promise.allSettled([
+          initializePurchases(),
+          initializeAds(),
+        ]);
+      } catch (error) {
+        console.error('Initialization error:', error);
+      } finally {
+        setIsReady(true);
+      }
     };
-    initializeMonetization();
+    initialize();
   }, []);
 
-  if (!fontsLoaded) {
+  const handleSplashComplete = () => {
+    if (fontsLoaded && isReady) {
+      setShowSplash(false);
+    }
+  };
+
+  // Show animated splash while loading
+  if (showSplash || !fontsLoaded || !isReady) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loadingText}>Loading...</Text>
+      <View style={styles.container}>
+        <StatusBar style="light" />
+        <AnimatedSplash
+          onAnimationComplete={handleSplashComplete}
+        />
       </View>
     );
   }
@@ -55,16 +77,5 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
-  },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    color: COLORS.text,
-    fontSize: 16,
   },
 });

@@ -11,12 +11,14 @@ import * as DocumentPicker from 'expo-document-picker';
 import { HomeScreenProps } from '../types';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { usePermissions } from '../hooks/usePermissions';
+import { useIsPremium } from '../store/useSubscriptionStore';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../utils/constants';
 import BannerAd from '../components/BannerAd';
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const { setCurrentDocument } = useDocumentStore();
   const { requestCameraPermission } = usePermissions();
+  const isPremium = useIsPremium();
 
   const handleScanDocument = async () => {
     const granted = await requestCameraPermission();
@@ -58,11 +60,29 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     navigation.navigate('SignatureManager');
   };
 
+  const handleSubscription = () => {
+    if (isPremium) {
+      navigation.navigate('CustomerCenter');
+    } else {
+      navigation.navigate('Paywall');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>SignSnap</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>SignSnap</Text>
+            <TouchableOpacity
+              style={[styles.premiumBadge, isPremium && styles.premiumBadgeActive]}
+              onPress={handleSubscription}
+            >
+              <Text style={styles.premiumBadgeText}>
+                {isPremium ? 'Premium' : 'Upgrade'}
+              </Text>
+            </TouchableOpacity>
+          </View>
           <Text style={styles.subtitle}>Sign documents in seconds</Text>
         </View>
 
@@ -132,11 +152,33 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xxl,
     marginBottom: SPACING.xxl,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.xs,
+  },
   title: {
     fontSize: FONT_SIZES.xxl,
     fontWeight: 'bold',
     color: COLORS.text,
-    marginBottom: SPACING.xs,
+  },
+  premiumBadge: {
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+  },
+  premiumBadgeActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  premiumBadgeText: {
+    fontSize: FONT_SIZES.xs,
+    fontWeight: '600',
+    color: COLORS.text,
   },
   subtitle: {
     fontSize: FONT_SIZES.md,
