@@ -53,6 +53,10 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     navigation.navigate('Documents');
   };
 
+  const handleManageSignatures = () => {
+    navigation.navigate('SignatureManager');
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
@@ -91,13 +95,23 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity
-          style={styles.documentsLink}
-          onPress={handleViewDocuments}
-        >
-          <Text style={styles.documentsLinkText}>My Documents</Text>
-          <Text style={styles.arrow}>→</Text>
-        </TouchableOpacity>
+        <View style={styles.linksContainer}>
+          <TouchableOpacity
+            style={styles.documentsLink}
+            onPress={handleViewDocuments}
+          >
+            <Text style={styles.documentsLinkText}>My Documents</Text>
+            <Text style={styles.arrow}>→</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.documentsLink}
+            onPress={handleManageSignatures}
+          >
+            <Text style={styles.documentsLinkText}>My Signatures</Text>
+            <Text style={styles.arrow}>→</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -158,11 +172,14 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.sm,
     color: COLORS.textSecondary,
   },
+  linksContainer: {
+    marginTop: 'auto',
+    gap: SPACING.xs,
+  },
   documentsLink: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 'auto',
     paddingVertical: SPACING.md,
   },
   documentsLinkText: {

@@ -63,7 +63,11 @@ export default function DocumentPreviewScreen({
   };
 
   const handleAddSignature = () => {
-    navigation.navigate('Signature');
+    navigation.navigate('Signature', { signatureType: 'signature' });
+  };
+
+  const handleAddInitials = () => {
+    navigation.navigate('Signature', { signatureType: 'initials' });
   };
 
   if (isLoading) {
@@ -117,12 +121,19 @@ export default function DocumentPreviewScreen({
       />
 
       <View style={styles.footer}>
-        <ActionButton
-          title="Add Signature"
-          onPress={handleAddSignature}
-          size="large"
-          style={styles.signButton}
-        />
+        <View style={styles.buttonRow}>
+          <ActionButton
+            title="Add Signature"
+            onPress={handleAddSignature}
+            style={styles.signButton}
+          />
+          <ActionButton
+            title="Add Initials"
+            onPress={handleAddInitials}
+            variant="outline"
+            style={styles.signButton}
+          />
+        </View>
       </View>
     </View>
   );
@@ -165,7 +176,11 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
   },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+  },
   signButton: {
-    width: '100%',
+    flex: 1,
   },
 });

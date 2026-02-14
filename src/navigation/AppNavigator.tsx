@@ -8,6 +8,9 @@ import HomeScreen from '../screens/HomeScreen';
 import CameraScreen from '../screens/CameraScreen';
 import DocumentPreviewScreen from '../screens/DocumentPreviewScreen';
 import SignatureScreen from '../screens/SignatureScreen';
+import SignatureCaptureScreen from '../screens/SignatureCaptureScreen';
+import SignatureTypedScreen from '../screens/SignatureTypedScreen';
+import SignatureManagerScreen from '../screens/SignatureManagerScreen';
 import PlaceSignatureScreen from '../screens/PlaceSignatureScreen';
 import FinalPreviewScreen from '../screens/FinalPreviewScreen';
 import DocumentsScreen from '../screens/DocumentsScreen';
@@ -55,9 +58,30 @@ export default function AppNavigator() {
           name="Signature"
           component={SignatureScreen}
           options={{
-            title: 'Draw Signature',
+            title: 'Signature',
             presentation: 'modal',
           }}
+        />
+        <Stack.Screen
+          name="SignatureCapture"
+          component={SignatureCaptureScreen}
+          options={{
+            title: 'Capture Signature',
+            presentation: 'modal',
+          }}
+        />
+        <Stack.Screen
+          name="SignatureTyped"
+          component={SignatureTypedScreen}
+          options={{
+            title: 'Type Signature',
+            presentation: 'modal',
+          }}
+        />
+        <Stack.Screen
+          name="SignatureManager"
+          component={SignatureManagerScreen}
+          options={{ title: 'My Signatures' }}
         />
         <Stack.Screen
           name="PlaceSignature"
