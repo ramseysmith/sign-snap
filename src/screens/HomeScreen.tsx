@@ -12,6 +12,7 @@ import { HomeScreenProps } from '../types';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { usePermissions } from '../hooks/usePermissions';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../utils/constants';
+import BannerAd from '../components/BannerAd';
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const { setCurrentDocument } = useDocumentStore();
@@ -113,6 +114,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           </TouchableOpacity>
         </View>
       </View>
+      <BannerAd />
     </SafeAreaView>
   );
 }

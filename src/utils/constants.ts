@@ -46,3 +46,6 @@ export const SIGNATURE_DEFAULT_SIZE = {
 };
 
 export const DOCUMENT_DIRECTORY = 'signed_documents';
+
+// Monetization
+export const PREMIUM_BADGE_COLOR = '#FFD700';

@@ -1,5 +1,5 @@
 import 'react-native-gesture-handler';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet, View, ActivityIndicator, Text } from 'react-native';
@@ -11,6 +11,8 @@ import { Allura_400Regular } from '@expo-google-fonts/allura';
 import { Sacramento_400Regular } from '@expo-google-fonts/sacramento';
 import AppNavigator from './src/navigation/AppNavigator';
 import { COLORS } from './src/utils/constants';
+import { initializePurchases } from './src/services/purchaseService';
+import { initializeAds } from './src/services/adService';
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -20,6 +22,17 @@ export default function App() {
     Allura: Allura_400Regular,
     Sacramento: Sacramento_400Regular,
   });
+
+  useEffect(() => {
+    // Initialize monetization services
+    const initializeMonetization = async () => {
+      await Promise.all([
+        initializePurchases(),
+        initializeAds(),
+      ]);
+    };
+    initializeMonetization();
+  }, []);
 
   if (!fontsLoaded) {
     return (

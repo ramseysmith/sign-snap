@@ -12,6 +12,7 @@ import { shareDocument } from '../services/shareService';
 import { saveDocument } from '../services/fileService';
 import ActionButton from '../components/ActionButton';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../utils/constants';
+import { useInterstitialAd } from '../hooks/useInterstitialAd';
 
 export default function FinalPreviewScreen({
   navigation,
@@ -23,6 +24,7 @@ export default function FinalPreviewScreen({
   const [isSaving, setIsSaving] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const { showAd } = useInterstitialAd();
 
   const handleShare = async () => {
     setIsSharing(true);
@@ -52,10 +54,13 @@ export default function FinalPreviewScreen({
   };
 
   const handleDone = () => {
-    resetWorkflow();
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Home' }],
+    // Show interstitial ad before navigating home
+    showAd(() => {
+      resetWorkflow();
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Home' }],
+      });
     });
   };
 

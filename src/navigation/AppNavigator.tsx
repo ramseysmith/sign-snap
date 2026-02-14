@@ -14,6 +14,7 @@ import SignatureManagerScreen from '../screens/SignatureManagerScreen';
 import PlaceSignatureScreen from '../screens/PlaceSignatureScreen';
 import FinalPreviewScreen from '../screens/FinalPreviewScreen';
 import DocumentsScreen from '../screens/DocumentsScreen';
+import PaywallScreen from '../screens/PaywallScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -97,6 +98,14 @@ export default function AppNavigator() {
           name="Documents"
           component={DocumentsScreen}
           options={{ title: 'My Documents' }}
+        />
+        <Stack.Screen
+          name="Paywall"
+          component={PaywallScreen}
+          options={{
+            title: 'Premium',
+            presentation: 'modal',
+          }}
         />
       </Stack.Navigator>
     </NavigationContainer>

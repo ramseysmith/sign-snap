@@ -20,6 +20,8 @@ import SignatureTypeToggle from '../components/SignatureTypeToggle';
 import SignatureMethodSelector from '../components/SignatureMethodSelector';
 import SignaturePreviewCard from '../components/SignaturePreviewCard';
 import ActionButton from '../components/ActionButton';
+import UpgradePrompt from '../components/UpgradePrompt';
+import { useSignatureLimit } from '../hooks/useSignatureLimit';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../utils/constants';
 
 type ScreenMode = 'select' | 'draw';
@@ -38,6 +40,7 @@ export default function SignatureScreen({ navigation, route }: SignatureScreenPr
     addSignature,
     removeSignature,
   } = useSignatureStore();
+  const { checkAndProceed, currentCount, isPremium } = useSignatureLimit();
 
   // Filter signatures by current type
   const filteredSignatures = useMemo(
@@ -46,13 +49,16 @@ export default function SignatureScreen({ navigation, route }: SignatureScreenPr
   );
 
   const handleMethodSelect = (method: SignatureInputMethod) => {
-    if (method === 'draw') {
-      setScreenMode('draw');
-    } else if (method === 'image') {
-      navigation.navigate('SignatureCapture', { signatureType });
-    } else if (method === 'typed') {
-      navigation.navigate('SignatureTyped', { signatureType });
-    }
+    // Check signature limit before creating a new one
+    checkAndProceed(() => {
+      if (method === 'draw') {
+        setScreenMode('draw');
+      } else if (method === 'image') {
+        navigation.navigate('SignatureCapture', { signatureType });
+      } else if (method === 'typed') {
+        navigation.navigate('SignatureTyped', { signatureType });
+      }
+    });
   };
 
   const handleSelectSignature = (signature: SavedSignature) => {
@@ -166,6 +172,14 @@ export default function SignatureScreen({ navigation, route }: SignatureScreenPr
           selectedType={signatureType}
           onTypeChange={setSignatureType}
         />
+
+        {!isPremium && (
+          <UpgradePrompt
+            currentCount={currentCount}
+            itemType={signatureType}
+            variant="banner"
+          />
+        )}
 
         {filteredSignatures.length > 0 && (
           <View style={styles.savedSection}>
