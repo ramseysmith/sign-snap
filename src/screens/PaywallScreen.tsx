@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Dimensions,
 } from 'react-native';
-import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
+import { LinearGradient } from 'expo-linear-gradient';
 import { PurchasesPackage } from 'react-native-purchases';
 import { PaywallScreenProps } from '../types';
 import { useSubscriptionStore } from '../store/useSubscriptionStore';
@@ -16,79 +17,67 @@ import {
   fetchAvailablePackages,
   purchasePackage,
   restorePurchases,
-  getPackagePricePerPeriod,
 } from '../services/purchaseService';
-import { PREMIUM_BENEFITS } from '../config/monetization';
-import ActionButton from '../components/ActionButton';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../utils/constants';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const BENEFITS = [
+  {
+    icon: '📄',
+    title: 'Unlimited Document Signing',
+    description: 'Sign as many documents as you need',
+  },
+  {
+    icon: '🚫',
+    title: 'No Advertisements',
+    description: 'Enjoy a clean, distraction-free experience',
+  },
+  {
+    icon: '⚡',
+    title: 'Priority Support',
+    description: 'Get help faster when you need it',
+  },
+];
 
 export default function PaywallScreen({ navigation }: PaywallScreenProps) {
   const {
     availablePackages,
     isPurchasing,
     isRestoring,
-    purchaseError,
     isPremium,
   } = useSubscriptionStore();
 
-  const [selectedPackage, setSelectedPackage] =
-    useState<PurchasesPackage | null>(null);
-  const [isLoadingPackages, setIsLoadingPackages] = useState(true);
-  const [useRevenueCatUI, setUseRevenueCatUI] = useState(true);
+  const [selectedPackage, setSelectedPackage] = useState<PurchasesPackage | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadPackages();
-    presentRevenueCatPaywall();
   }, []);
 
   useEffect(() => {
-    // Auto-select the monthly package if available
+    // Auto-select the yearly package (best value)
     if (availablePackages.length > 0 && !selectedPackage) {
+      const yearlyPkg = availablePackages.find(
+        (pkg) => pkg.packageType === 'ANNUAL'
+      );
       const monthlyPkg = availablePackages.find(
         (pkg) => pkg.packageType === 'MONTHLY'
       );
-      setSelectedPackage(monthlyPkg || availablePackages[0]);
+      setSelectedPackage(yearlyPkg || monthlyPkg || availablePackages[0]);
     }
   }, [availablePackages, selectedPackage]);
 
   useEffect(() => {
-    // Close paywall if user becomes premium
     if (isPremium) {
       navigation.goBack();
     }
   }, [isPremium, navigation]);
 
-  const presentRevenueCatPaywall = async () => {
-    try {
-      // Try to present RevenueCat's native paywall
-      const paywallResult = await RevenueCatUI.presentPaywall();
-
-      switch (paywallResult) {
-        case PAYWALL_RESULT.PURCHASED:
-        case PAYWALL_RESULT.RESTORED:
-          // Success - navigation will happen via isPremium effect
-          break;
-        case PAYWALL_RESULT.CANCELLED:
-        case PAYWALL_RESULT.NOT_PRESENTED:
-          // User cancelled or paywall couldn't be presented
-          // Fall back to custom UI
-          setUseRevenueCatUI(false);
-          break;
-        case PAYWALL_RESULT.ERROR:
-          console.log('RevenueCat paywall error, falling back to custom UI');
-          setUseRevenueCatUI(false);
-          break;
-      }
-    } catch (error) {
-      console.log('RevenueCat UI not available, using custom paywall:', error);
-      setUseRevenueCatUI(false);
-    }
-  };
-
   const loadPackages = async () => {
-    setIsLoadingPackages(true);
+    setIsLoading(true);
     await fetchAvailablePackages();
-    setIsLoadingPackages(false);
+    setIsLoading(false);
   };
 
   const handlePurchase = async () => {
@@ -98,11 +87,11 @@ export default function PaywallScreen({ navigation }: PaywallScreenProps) {
 
     if (result.success) {
       Alert.alert(
-        'Welcome to Premium!',
-        'Thank you for subscribing. Enjoy unlimited signatures and ad-free experience!',
-        [{ text: 'Continue', onPress: () => navigation.goBack() }]
+        '🎉 Welcome to Premium!',
+        'Thank you for subscribing. Enjoy unlimited signatures and an ad-free experience!',
+        [{ text: 'Let\'s Go!', onPress: () => navigation.goBack() }]
       );
-    } else if (result.error) {
+    } else if (result.error && !result.error.includes('cancelled')) {
       Alert.alert('Purchase Failed', result.error);
     }
   };
@@ -128,94 +117,102 @@ export default function PaywallScreen({ navigation }: PaywallScreenProps) {
     }
   };
 
-  const getPackageLabel = (pkg: PurchasesPackage): string => {
+  const getPackageInfo = (pkg: PurchasesPackage) => {
+    const price = pkg.product.priceString;
+
     switch (pkg.packageType) {
       case 'WEEKLY':
-        return 'Weekly';
+        return {
+          label: 'Weekly',
+          price: price,
+          period: '/week',
+          savings: null,
+          badge: null,
+        };
       case 'MONTHLY':
-        return 'Monthly';
+        return {
+          label: 'Monthly',
+          price: price,
+          period: '/month',
+          savings: null,
+          badge: 'Popular',
+        };
       case 'ANNUAL':
-        return 'Yearly';
+        return {
+          label: 'Yearly',
+          price: price,
+          period: '/year',
+          savings: 'Save 50%',
+          badge: 'Best Value',
+        };
       default:
-        return pkg.identifier;
+        return {
+          label: pkg.identifier,
+          price: price,
+          period: '',
+          savings: null,
+          badge: null,
+        };
     }
   };
 
-  const getPackageBadge = (pkg: PurchasesPackage): string | null => {
-    switch (pkg.packageType) {
-      case 'MONTHLY':
-        return 'Popular';
-      case 'ANNUAL':
-        return 'Best Value';
-      default:
-        return null;
-    }
+  const handleClose = () => {
+    navigation.goBack();
   };
 
-  const renderBenefitIcon = (iconType: string) => {
-    switch (iconType) {
-      case 'unlimited':
-        return <Text style={styles.benefitIconText}>Unlimited</Text>;
-      case 'no-ads':
-        return <Text style={styles.benefitIconText}>No Ads</Text>;
-      case 'priority':
-        return <Text style={styles.benefitIconText}>VIP</Text>;
-      default:
-        return <Text style={styles.benefitIconText}>+</Text>;
-    }
-  };
-
-  // If RevenueCat UI is being used, show loading while it presents
-  if (useRevenueCatUI) {
-    return (
-      <View style={styles.loadingFullScreen}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
-    );
-  }
-
-  // Custom fallback UI
   return (
     <View style={styles.container}>
+      {/* Header with gradient */}
+      <LinearGradient
+        colors={['#6C63FF', '#8B7FFF', '#A599FF']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
+        <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+          <Text style={styles.closeButtonText}>✕</Text>
+        </TouchableOpacity>
+
+        <View style={styles.headerContent}>
+          <Text style={styles.premiumIcon}>👑</Text>
+          <Text style={styles.headerTitle}>Go Premium</Text>
+          <Text style={styles.headerSubtitle}>
+            Unlock the full power of SignSnap
+          </Text>
+        </View>
+      </LinearGradient>
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Upgrade to Premium</Text>
-          <Text style={styles.subtitle}>
-            Unlock unlimited signatures and remove all ads
-          </Text>
-        </View>
-
-        <View style={styles.benefitsContainer}>
-          {PREMIUM_BENEFITS.map((benefit, index) => (
-            <View key={index} style={styles.benefitItem}>
-              <View style={styles.benefitIcon}>
-                {renderBenefitIcon(benefit.icon)}
+        {/* Benefits */}
+        <View style={styles.benefitsSection}>
+          {BENEFITS.map((benefit, index) => (
+            <View key={index} style={styles.benefitRow}>
+              <View style={styles.benefitIconContainer}>
+                <Text style={styles.benefitIcon}>{benefit.icon}</Text>
               </View>
-              <View style={styles.benefitText}>
+              <View style={styles.benefitTextContainer}>
                 <Text style={styles.benefitTitle}>{benefit.title}</Text>
-                <Text style={styles.benefitDescription}>
-                  {benefit.description}
-                </Text>
+                <Text style={styles.benefitDescription}>{benefit.description}</Text>
               </View>
             </View>
           ))}
         </View>
 
-        {isLoadingPackages ? (
+        {/* Plans */}
+        {isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={COLORS.primary} />
             <Text style={styles.loadingText}>Loading plans...</Text>
           </View>
         ) : (
-          <View style={styles.plansContainer}>
-            <Text style={styles.sectionTitle}>Choose Your Plan</Text>
+          <View style={styles.plansSection}>
             {availablePackages.map((pkg) => {
+              const info = getPackageInfo(pkg);
               const isSelected = selectedPackage?.identifier === pkg.identifier;
-              const badge = getPackageBadge(pkg);
 
               return (
                 <TouchableOpacity
@@ -225,67 +222,91 @@ export default function PaywallScreen({ navigation }: PaywallScreenProps) {
                     isSelected && styles.planCardSelected,
                   ]}
                   onPress={() => setSelectedPackage(pkg)}
-                  activeOpacity={0.7}
+                  activeOpacity={0.8}
                 >
-                  {badge && (
-                    <View style={styles.planBadge}>
-                      <Text style={styles.planBadgeText}>{badge}</Text>
+                  {info.badge && (
+                    <View style={[
+                      styles.planBadge,
+                      info.badge === 'Best Value' && styles.planBadgeBestValue
+                    ]}>
+                      <Text style={styles.planBadgeText}>{info.badge}</Text>
                     </View>
                   )}
-                  <View style={styles.planContent}>
-                    <Text
-                      style={[
-                        styles.planLabel,
-                        isSelected && styles.planLabelSelected,
-                      ]}
-                    >
-                      {getPackageLabel(pkg)}
+
+                  <View style={styles.planInfo}>
+                    <Text style={[
+                      styles.planLabel,
+                      isSelected && styles.planLabelSelected
+                    ]}>
+                      {info.label}
                     </Text>
-                    <Text
-                      style={[
-                        styles.planPrice,
-                        isSelected && styles.planPriceSelected,
-                      ]}
-                    >
-                      {getPackagePricePerPeriod(pkg)}
-                    </Text>
+                    {info.savings && (
+                      <Text style={styles.planSavings}>{info.savings}</Text>
+                    )}
                   </View>
-                  <View
-                    style={[
-                      styles.radioOuter,
-                      isSelected && styles.radioOuterSelected,
-                    ]}
-                  >
-                    {isSelected && <View style={styles.radioInner} />}
+
+                  <View style={styles.planPriceContainer}>
+                    <Text style={[
+                      styles.planPrice,
+                      isSelected && styles.planPriceSelected
+                    ]}>
+                      {info.price}
+                    </Text>
+                    <Text style={styles.planPeriod}>{info.period}</Text>
+                  </View>
+
+                  <View style={[
+                    styles.radioButton,
+                    isSelected && styles.radioButtonSelected
+                  ]}>
+                    {isSelected && <View style={styles.radioButtonInner} />}
                   </View>
                 </TouchableOpacity>
               );
             })}
           </View>
         )}
-
-        {purchaseError && (
-          <Text style={styles.errorText}>{purchaseError}</Text>
-        )}
       </ScrollView>
 
+      {/* Footer */}
       <View style={styles.footer}>
-        <ActionButton
-          title={isPurchasing ? 'Processing...' : 'Subscribe Now'}
+        <TouchableOpacity
+          style={[
+            styles.subscribeButton,
+            (!selectedPackage || isPurchasing) && styles.subscribeButtonDisabled
+          ]}
           onPress={handlePurchase}
-          disabled={!selectedPackage || isPurchasing || isLoadingPackages}
-          loading={isPurchasing}
-          size="large"
-        />
+          disabled={!selectedPackage || isPurchasing}
+          activeOpacity={0.9}
+        >
+          <LinearGradient
+            colors={(!selectedPackage || isPurchasing)
+              ? ['#444', '#444']
+              : ['#6C63FF', '#8B7FFF']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.subscribeButtonGradient}
+          >
+            {isPurchasing ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.subscribeButtonText}>
+                Start Premium
+              </Text>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={styles.restoreButton}
           onPress={handleRestore}
           disabled={isRestoring}
         >
-          <Text style={styles.restoreText}>
+          <Text style={styles.restoreButtonText}>
             {isRestoring ? 'Restoring...' : 'Restore Purchases'}
           </Text>
         </TouchableOpacity>
+
         <Text style={styles.legalText}>
           Cancel anytime. Subscription auto-renews until cancelled.
         </Text>
@@ -294,94 +315,83 @@ export default function PaywallScreen({ navigation }: PaywallScreenProps) {
   );
 }
 
-/**
- * Present RevenueCat paywall directly (can be called from anywhere)
- */
-export async function presentPaywall(): Promise<boolean> {
-  try {
-    const result = await RevenueCatUI.presentPaywall();
-    return result === PAYWALL_RESULT.PURCHASED || result === PAYWALL_RESULT.RESTORED;
-  } catch (error) {
-    console.error('Failed to present paywall:', error);
-    return false;
-  }
-}
-
-/**
- * Present RevenueCat paywall if user doesn't have entitlement
- */
-export async function presentPaywallIfNeeded(): Promise<boolean> {
-  try {
-    const result = await RevenueCatUI.presentPaywallIfNeeded({
-      requiredEntitlementIdentifier: 'SignSnap Premium',
-    });
-    return result === PAYWALL_RESULT.PURCHASED || result === PAYWALL_RESULT.RESTORED;
-  } catch (error) {
-    console.error('Failed to present paywall:', error);
-    return false;
-  }
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  loadingFullScreen: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    justifyContent: 'center',
+  header: {
+    paddingTop: 60,
+    paddingBottom: 32,
+    paddingHorizontal: SPACING.lg,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  headerContent: {
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  premiumIcon: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.9)',
+    textAlign: 'center',
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     padding: SPACING.lg,
-    paddingBottom: SPACING.xxl,
   },
-  header: {
-    alignItems: 'center',
+  benefitsSection: {
     marginBottom: SPACING.xl,
   },
-  title: {
-    fontSize: FONT_SIZES.xxl,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: SPACING.xs,
-  },
-  subtitle: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-  },
-  benefitsContainer: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.lg,
-    marginBottom: SPACING.xl,
-  },
-  benefitItem: {
+  benefitRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: SPACING.md,
-  },
-  benefitIcon: {
-    width: 48,
-    height: 48,
+    backgroundColor: COLORS.surface,
+    padding: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.primaryDark,
+  },
+  benefitIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.surfaceLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: SPACING.md,
   },
-  benefitIconText: {
-    fontSize: FONT_SIZES.xs,
-    fontWeight: '600',
-    color: COLORS.text,
-    textAlign: 'center',
+  benefitIcon: {
+    fontSize: 22,
   },
-  benefitText: {
+  benefitTextContainer: {
     flex: 1,
   },
   benefitTitle: {
@@ -403,63 +413,77 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.md,
     color: COLORS.textSecondary,
   },
-  plansContainer: {
-    marginBottom: SPACING.lg,
-  },
-  sectionTitle: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: SPACING.md,
+  plansSection: {
+    gap: SPACING.sm,
   },
   planCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
-    marginBottom: SPACING.sm,
     borderWidth: 2,
     borderColor: COLORS.border,
+    position: 'relative',
+    overflow: 'visible',
   },
   planCardSelected: {
     borderColor: COLORS.primary,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: 'rgba(108, 99, 255, 0.08)',
   },
   planBadge: {
     position: 'absolute',
-    top: -10,
-    right: SPACING.md,
+    top: -12,
+    left: SPACING.lg,
     backgroundColor: COLORS.primary,
     paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
+    paddingVertical: 4,
     borderRadius: BORDER_RADIUS.sm,
   },
-  planBadgeText: {
-    fontSize: FONT_SIZES.xs,
-    fontWeight: '600',
-    color: COLORS.text,
+  planBadgeBestValue: {
+    backgroundColor: '#FFB800',
   },
-  planContent: {
+  planBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  planInfo: {
     flex: 1,
   },
   planLabel: {
     fontSize: FONT_SIZES.lg,
     fontWeight: '600',
     color: COLORS.text,
-    marginBottom: 2,
   },
   planLabelSelected: {
     color: COLORS.primary,
   },
-  planPrice: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
+  planSavings: {
+    fontSize: FONT_SIZES.xs,
+    color: '#4CAF50',
+    fontWeight: '600',
+    marginTop: 2,
   },
-  planPriceSelected: {
+  planPriceContainer: {
+    alignItems: 'flex-end',
+    marginRight: SPACING.md,
+  },
+  planPrice: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '700',
     color: COLORS.text,
   },
-  radioOuter: {
+  planPriceSelected: {
+    color: COLORS.primary,
+  },
+  planPeriod: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textSecondary,
+  },
+  radioButton: {
     width: 24,
     height: 24,
     borderRadius: 12,
@@ -468,38 +492,53 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  radioOuterSelected: {
+  radioButtonSelected: {
     borderColor: COLORS.primary,
   },
-  radioInner: {
+  radioButtonInner: {
     width: 12,
     height: 12,
     borderRadius: 6,
     backgroundColor: COLORS.primary,
   },
-  errorText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.error,
-    textAlign: 'center',
-    marginTop: SPACING.sm,
-  },
   footer: {
     padding: SPACING.lg,
+    paddingBottom: 34,
+    backgroundColor: COLORS.surface,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
-    backgroundColor: COLORS.surface,
+  },
+  subscribeButton: {
+    borderRadius: BORDER_RADIUS.lg,
+    overflow: 'hidden',
+  },
+  subscribeButtonDisabled: {
+    opacity: 0.6,
+  },
+  subscribeButtonGradient: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  subscribeButtonText: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   restoreButton: {
     alignItems: 'center',
     paddingVertical: SPACING.md,
+    marginTop: SPACING.sm,
   },
-  restoreText: {
+  restoreButtonText: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.primary,
+    fontWeight: '500',
   },
   legalText: {
-    fontSize: FONT_SIZES.xs,
+    fontSize: 11,
     color: COLORS.textMuted,
     textAlign: 'center',
+    marginTop: SPACING.xs,
   },
 });

@@ -8,6 +8,11 @@ interface SubscriptionState {
   isPremium: boolean;
   isLoading: boolean;
 
+  // Document signing tracking (for free tier limits)
+  documentsSignedCount: number;
+  additionalDocumentCredits: number; // Earned by watching rewarded ads
+  rewardedAdsWatched: number; // Counter towards next credit (resets at 5)
+
   // Available packages from RevenueCat
   availablePackages: PurchasesPackage[];
 
@@ -25,12 +30,18 @@ interface SubscriptionState {
   setIsPurchasing: (isPurchasing: boolean) => void;
   setPurchaseError: (error: string | null) => void;
   setIsRestoring: (isRestoring: boolean) => void;
+  incrementDocumentsSigned: () => void;
+  addRewardedAdWatch: () => void;
+  useDocumentCredit: () => boolean;
   reset: () => void;
 }
 
 const initialState = {
   isPremium: false,
   isLoading: true,
+  documentsSignedCount: 0,
+  additionalDocumentCredits: 0,
+  rewardedAdsWatched: 0,
   availablePackages: [],
   isPurchasing: false,
   purchaseError: null,
@@ -39,7 +50,7 @@ const initialState = {
 
 export const useSubscriptionStore = create<SubscriptionState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...initialState,
 
       setIsPremium: (isPremium) => set({ isPremium }),
@@ -54,14 +65,44 @@ export const useSubscriptionStore = create<SubscriptionState>()(
 
       setIsRestoring: (isRestoring) => set({ isRestoring }),
 
+      incrementDocumentsSigned: () =>
+        set((state) => ({
+          documentsSignedCount: state.documentsSignedCount + 1,
+        })),
+
+      addRewardedAdWatch: () =>
+        set((state) => {
+          const newCount = state.rewardedAdsWatched + 1;
+          // Every 5 rewarded ads earns 1 document credit
+          if (newCount >= 5) {
+            return {
+              rewardedAdsWatched: 0,
+              additionalDocumentCredits: state.additionalDocumentCredits + 1,
+            };
+          }
+          return { rewardedAdsWatched: newCount };
+        }),
+
+      useDocumentCredit: () => {
+        const state = get();
+        if (state.additionalDocumentCredits > 0) {
+          set({ additionalDocumentCredits: state.additionalDocumentCredits - 1 });
+          return true;
+        }
+        return false;
+      },
+
       reset: () => set(initialState),
     }),
     {
       name: 'subscription-storage',
       storage: createJSONStorage(() => AsyncStorage),
-      // Only persist isPremium for offline access
+      // Persist premium status and document tracking for offline access
       partialize: (state) => ({
         isPremium: state.isPremium,
+        documentsSignedCount: state.documentsSignedCount,
+        additionalDocumentCredits: state.additionalDocumentCredits,
+        rewardedAdsWatched: state.rewardedAdsWatched,
       }),
     }
   )

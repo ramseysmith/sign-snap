@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,9 @@ import {
   Alert,
   ScrollView,
   TouchableOpacity,
+  SafeAreaView,
 } from 'react-native';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import {
   SignatureScreenProps,
   SignatureType,
@@ -20,8 +22,7 @@ import SignatureTypeToggle from '../components/SignatureTypeToggle';
 import SignatureMethodSelector from '../components/SignatureMethodSelector';
 import SignaturePreviewCard from '../components/SignaturePreviewCard';
 import ActionButton from '../components/ActionButton';
-import UpgradePrompt from '../components/UpgradePrompt';
-import { useSignatureLimit } from '../hooks/useSignatureLimit';
+import { useInterstitialAd } from '../hooks/useInterstitialAd';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../utils/constants';
 
 type ScreenMode = 'select' | 'draw';
@@ -31,6 +32,7 @@ export default function SignatureScreen({ navigation, route }: SignatureScreenPr
   const [signatureType, setSignatureType] = useState<SignatureType>(initialType);
   const [screenMode, setScreenMode] = useState<ScreenMode>('select');
   const [signatureData, setSignatureData] = useState<string | null>(null);
+  const [isLandscape, setIsLandscape] = useState(false);
 
   const signaturePadRef = useRef<SignaturePadRef>(null);
   const { setSignature, currentPage } = useDocumentStore();
@@ -40,7 +42,25 @@ export default function SignatureScreen({ navigation, route }: SignatureScreenPr
     addSignature,
     removeSignature,
   } = useSignatureStore();
-  const { checkAndProceed, currentCount, isPremium } = useSignatureLimit();
+  const { showAd } = useInterstitialAd();
+
+  // Handle orientation changes
+  useEffect(() => {
+    return () => {
+      // Reset to portrait when leaving the screen
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+    };
+  }, []);
+
+  const toggleOrientation = async () => {
+    if (isLandscape) {
+      await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+      setIsLandscape(false);
+    } else {
+      await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT);
+      setIsLandscape(true);
+    }
+  };
 
   // Filter signatures by current type
   const filteredSignatures = useMemo(
@@ -49,16 +69,14 @@ export default function SignatureScreen({ navigation, route }: SignatureScreenPr
   );
 
   const handleMethodSelect = (method: SignatureInputMethod) => {
-    // Check signature limit before creating a new one
-    checkAndProceed(() => {
-      if (method === 'draw') {
-        setScreenMode('draw');
-      } else if (method === 'image') {
-        navigation.navigate('SignatureCapture', { signatureType });
-      } else if (method === 'typed') {
-        navigation.navigate('SignatureTyped', { signatureType });
-      }
-    });
+    // No signature limit - users can create unlimited signatures
+    if (method === 'draw') {
+      setScreenMode('draw');
+    } else if (method === 'image') {
+      navigation.navigate('SignatureCapture', { signatureType });
+    } else if (method === 'typed') {
+      navigation.navigate('SignatureTyped', { signatureType });
+    }
   };
 
   const handleSelectSignature = (signature: SavedSignature) => {
@@ -77,7 +95,12 @@ export default function SignatureScreen({ navigation, route }: SignatureScreenPr
     setSignatureData(null);
   };
 
-  const handleBackToSelect = () => {
+  const handleBackToSelect = async () => {
+    // Reset to portrait when leaving draw mode
+    if (isLandscape) {
+      await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+      setIsLandscape(false);
+    }
     setScreenMode('select');
     setSignatureData(null);
   };
@@ -106,31 +129,45 @@ export default function SignatureScreen({ navigation, route }: SignatureScreenPr
     addSignature(newSignature);
     setActiveSignature(newSignature);
     setSignature(signature);
-    navigation.navigate('PlaceSignature', { pageIndex: currentPage });
+
+    // Show interstitial ad after creating a new signature, then navigate
+    showAd(() => {
+      navigation.navigate('PlaceSignature', { pageIndex: currentPage });
+    });
   };
 
   // Render draw mode
   if (screenMode === 'draw') {
     return (
-      <View style={styles.container}>
-        <View style={styles.header}>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.drawHeader}>
           <TouchableOpacity onPress={handleBackToSelect} style={styles.backButton}>
-            <Text style={styles.backButtonText}>Back</Text>
+            <Text style={styles.backButtonText}>← Back</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>
-            Draw Your {signatureType === 'signature' ? 'Signature' : 'Initials'}
-          </Text>
-          <Text style={styles.subtitle}>
-            Use your finger to sign in the area below
-          </Text>
+          <TouchableOpacity onPress={toggleOrientation} style={styles.rotateButton}>
+            <Text style={styles.rotateButtonText}>
+              {isLandscape ? '↺ Portrait' : '↻ Landscape'}
+            </Text>
+          </TouchableOpacity>
         </View>
+
+        {!isLandscape && (
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>
+              Draw Your {signatureType === 'signature' ? 'Signature' : 'Initials'}
+            </Text>
+            <Text style={styles.subtitle}>
+              Use your finger to sign in the area below
+            </Text>
+          </View>
+        )}
 
         <View style={styles.canvasContainer}>
           <SignaturePad
             ref={signaturePadRef}
             onSignatureChange={handleSignatureChange}
             penColor="#000000"
-            backgroundColor="rgba(255,255,255,1)"
+            backgroundColor="transparent"
           />
         </View>
 
@@ -147,7 +184,7 @@ export default function SignatureScreen({ navigation, route }: SignatureScreenPr
             style={styles.button}
           />
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
@@ -172,14 +209,6 @@ export default function SignatureScreen({ navigation, route }: SignatureScreenPr
           selectedType={signatureType}
           onTypeChange={setSignatureType}
         />
-
-        {!isPremium && (
-          <UpgradePrompt
-            currentCount={currentCount}
-            itemType={signatureType}
-            variant="banner"
-          />
-        )}
 
         {filteredSignatures.length > 0 && (
           <View style={styles.savedSection}>
@@ -231,12 +260,38 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: SPACING.lg,
   },
+  drawHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  titleContainer: {
+    paddingHorizontal: SPACING.lg,
+    marginTop: SPACING.sm,
+  },
   backButton: {
-    marginBottom: SPACING.sm,
+    paddingVertical: SPACING.sm,
   },
   backButtonText: {
     fontSize: FONT_SIZES.md,
     color: COLORS.primary,
+  },
+  rotateButton: {
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  rotateButtonText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.text,
+    fontWeight: '500',
   },
   title: {
     fontSize: FONT_SIZES.xl,
@@ -275,6 +330,8 @@ const styles = StyleSheet.create({
   },
   canvasContainer: {
     flex: 1,
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
     overflow: 'hidden',
     borderWidth: 2,

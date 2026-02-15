@@ -17,6 +17,17 @@ if (typeof global.btoa === 'undefined') {
   global.btoa = base64Encode;
 }
 
+// Convert Uint8Array to base64 without stack overflow
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  const CHUNK_SIZE = 0x8000; // 32KB chunks to avoid call stack issues
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+    const chunk = bytes.subarray(i, Math.min(i + CHUNK_SIZE, bytes.length));
+    binary += String.fromCharCode.apply(null, Array.from(chunk));
+  }
+  return btoa(binary);
+}
+
 export async function getPdfPageCount(pdfUri: string): Promise<number> {
   try {
     const pdfBase64 = await readAsStringAsync(pdfUri, {
@@ -95,9 +106,7 @@ export async function embedSignatureOnPdf(
 
     // Save the modified PDF
     const modifiedPdfBytes = await pdfDoc.save();
-    const modifiedPdfBase64 = btoa(
-      String.fromCharCode.apply(null, Array.from(modifiedPdfBytes))
-    );
+    const modifiedPdfBase64 = uint8ArrayToBase64(modifiedPdfBytes);
 
     // Write to a new file
     const outputUri = `${cacheDirectory}signed_${Date.now()}.pdf`;
@@ -143,7 +152,7 @@ export async function imagesToPdf(imageUris: string[]): Promise<string> {
 
     // Save the PDF
     const pdfBytes = await pdfDoc.save();
-    const pdfBase64 = btoa(String.fromCharCode.apply(null, Array.from(pdfBytes)));
+    const pdfBase64 = uint8ArrayToBase64(pdfBytes);
 
     const outputUri = `${cacheDirectory}scanned_${Date.now()}.pdf`;
     await writeAsStringAsync(outputUri, pdfBase64, {

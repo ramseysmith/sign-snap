@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,9 @@ import { saveDocument } from '../services/fileService';
 import ActionButton from '../components/ActionButton';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../utils/constants';
 import { useInterstitialAd } from '../hooks/useInterstitialAd';
+import { useDocumentLimit } from '../hooks/useDocumentLimit';
+import { useRewardedAd } from '../hooks/useRewardedAd';
+import { FREE_TIER_LIMITS } from '../config/monetization';
 
 export default function FinalPreviewScreen({
   navigation,
@@ -24,12 +27,34 @@ export default function FinalPreviewScreen({
   const [isSaving, setIsSaving] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [hasCountedDocument, setHasCountedDocument] = useState(false);
   const { showAd } = useInterstitialAd();
+  const {
+    canSignDocument,
+    isAtLimit,
+    isPremium,
+    remainingSignings,
+    incrementDocumentsSigned,
+    useDocumentCredit,
+    adsNeededForNextCredit,
+  } = useDocumentLimit();
+  const { showRewardedAd, isLoaded: isRewardedAdLoaded, adsUntilCredit } = useRewardedAd();
+
+  // Count this document signing when user arrives at this screen
+  useEffect(() => {
+    if (!hasCountedDocument && !isPremium) {
+      incrementDocumentsSigned();
+      setHasCountedDocument(true);
+    }
+  }, [hasCountedDocument, isPremium, incrementDocumentsSigned]);
 
   const handleShare = async () => {
-    setIsSharing(true);
-    await shareDocument(signedPdfUri);
-    setIsSharing(false);
+    // Show interstitial ad before sharing (for free users)
+    showAd(async () => {
+      setIsSharing(true);
+      await shareDocument(signedPdfUri);
+      setIsSharing(false);
+    });
   };
 
   const handleSave = async () => {
@@ -38,19 +63,22 @@ export default function FinalPreviewScreen({
       return;
     }
 
-    setIsSaving(true);
-    try {
-      const signedName = documentName.replace('.pdf', '_signed.pdf');
-      const savedDoc = await saveDocument(signedPdfUri, signedName);
-      addSavedDocument(savedDoc);
-      setIsSaved(true);
-      Alert.alert('Saved', 'Document saved to your library.');
-    } catch (error) {
-      console.error('Error saving document:', error);
-      Alert.alert('Error', 'Failed to save document. Please try again.');
-    } finally {
-      setIsSaving(false);
-    }
+    // Show interstitial ad before saving (for free users)
+    showAd(async () => {
+      setIsSaving(true);
+      try {
+        const signedName = documentName.replace('.pdf', '_signed.pdf');
+        const savedDoc = await saveDocument(signedPdfUri, signedName);
+        addSavedDocument(savedDoc);
+        setIsSaved(true);
+        Alert.alert('Saved', 'Document saved to your library.');
+      } catch (error) {
+        console.error('Error saving document:', error);
+        Alert.alert('Error', 'Failed to save document. Please try again.');
+      } finally {
+        setIsSaving(false);
+      }
+    });
   };
 
   const handleDone = () => {

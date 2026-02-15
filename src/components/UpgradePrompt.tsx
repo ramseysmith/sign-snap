@@ -9,22 +9,30 @@ import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../utils/constants';
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 interface UpgradePromptProps {
-  currentCount: number;
-  itemType?: 'signature' | 'initials';
-  variant?: 'banner' | 'card';
+  documentsSignedCount: number;
+  additionalCredits?: number;
+  adsWatched?: number;
+  variant?: 'banner' | 'card' | 'limit-reached';
   onUpgrade?: () => void;
+  onWatchAds?: () => void;
 }
 
 export default function UpgradePrompt({
-  currentCount,
-  itemType = 'signature',
+  documentsSignedCount,
+  additionalCredits = 0,
+  adsWatched = 0,
   variant = 'banner',
   onUpgrade,
+  onWatchAds,
 }: UpgradePromptProps) {
   const navigation = useNavigation<NavigationProp>();
-  const maxAllowed = FREE_TIER_LIMITS.maxSavedSignatures;
-  const remaining = Math.max(0, maxAllowed - currentCount);
-  const isAtLimit = currentCount >= maxAllowed;
+  const maxAllowed = FREE_TIER_LIMITS.maxDocumentSignings;
+  const adsPerCredit = FREE_TIER_LIMITS.rewardedAdsPerDocument;
+
+  const baseRemaining = Math.max(0, maxAllowed - documentsSignedCount);
+  const totalRemaining = baseRemaining + additionalCredits;
+  const isAtLimit = totalRemaining <= 0;
+  const adsUntilNextCredit = adsPerCredit - adsWatched;
 
   const handleUpgradePress = () => {
     if (onUpgrade) {
@@ -34,30 +42,73 @@ export default function UpgradePrompt({
     }
   };
 
-  if (variant === 'card') {
+  // Limit reached variant - shows both options
+  if (variant === 'limit-reached') {
     return (
-      <View style={styles.cardContainer}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>
-            {isAtLimit ? 'Signature Limit Reached' : 'Free Plan'}
-          </Text>
-          <View style={styles.countBadge}>
-            <Text style={styles.countBadgeText}>
-              {currentCount}/{maxAllowed}
-            </Text>
-          </View>
+      <View style={styles.limitContainer}>
+        <View style={styles.limitHeader}>
+          <Text style={styles.limitIcon}>📄</Text>
+          <Text style={styles.limitTitle}>Document Limit Reached</Text>
         </View>
-        <Text style={styles.cardDescription}>
-          {isAtLimit
-            ? `You've saved ${maxAllowed} ${itemType}s. Upgrade to save unlimited ${itemType}s.`
-            : `You have ${remaining} ${itemType} slot${remaining !== 1 ? 's' : ''} remaining.`}
+        <Text style={styles.limitDescription}>
+          You've used your {maxAllowed} free document signings. Choose how to continue:
         </Text>
+
         <TouchableOpacity
           style={styles.upgradeButton}
           onPress={handleUpgradePress}
           activeOpacity={0.7}
         >
           <Text style={styles.upgradeButtonText}>Upgrade to Premium</Text>
+          <Text style={styles.upgradeButtonSubtext}>Unlimited documents, no ads</Text>
+        </TouchableOpacity>
+
+        <View style={styles.dividerRow}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>OR</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        <TouchableOpacity
+          style={styles.watchAdsButton}
+          onPress={onWatchAds}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.watchAdsButtonText}>Watch Ads for More Documents</Text>
+          <Text style={styles.watchAdsButtonSubtext}>
+            {adsWatched > 0
+              ? `${adsUntilNextCredit} more ad${adsUntilNextCredit !== 1 ? 's' : ''} = 1 document`
+              : `${adsPerCredit} ads = 1 document signing`}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (variant === 'card') {
+    return (
+      <View style={styles.cardContainer}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>
+            {isAtLimit ? 'Document Limit Reached' : 'Free Plan'}
+          </Text>
+          <View style={styles.countBadge}>
+            <Text style={styles.countBadgeText}>
+              {totalRemaining} left
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.cardDescription}>
+          {isAtLimit
+            ? `You've used your ${maxAllowed} free document signings. Upgrade or watch ads for more.`
+            : `You have ${totalRemaining} document signing${totalRemaining !== 1 ? 's' : ''} remaining.`}
+        </Text>
+        <TouchableOpacity
+          style={styles.upgradeCardButton}
+          onPress={handleUpgradePress}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.upgradeCardButtonText}>Upgrade to Premium</Text>
         </TouchableOpacity>
       </View>
     );
@@ -73,8 +124,8 @@ export default function UpgradePrompt({
       <View style={styles.bannerContent}>
         <Text style={styles.bannerText}>
           {isAtLimit
-            ? `Limit reached (${currentCount}/${maxAllowed})`
-            : `Free: ${currentCount}/${maxAllowed} ${itemType}s`}
+            ? `Limit reached - Upgrade for unlimited`
+            : `Free: ${totalRemaining} document${totalRemaining !== 1 ? 's' : ''} left`}
         </Text>
         <Text style={styles.bannerAction}>Upgrade</Text>
       </View>
@@ -147,6 +198,46 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
     lineHeight: 20,
   },
+  upgradeCardButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: BORDER_RADIUS.md,
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+  },
+  upgradeCardButtonText: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+
+  // Limit reached styles
+  limitContainer: {
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+  },
+  limitHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+    gap: SPACING.sm,
+  },
+  limitIcon: {
+    fontSize: 24,
+  },
+  limitTitle: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  limitDescription: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.lg,
+    lineHeight: 20,
+  },
   upgradeButton: {
     backgroundColor: COLORS.primary,
     borderRadius: BORDER_RADIUS.md,
@@ -156,6 +247,44 @@ const styles = StyleSheet.create({
   upgradeButtonText: {
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  upgradeButtonSubtext: {
+    fontSize: FONT_SIZES.xs,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: SPACING.md,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: COLORS.border,
+  },
+  dividerText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textMuted,
+    marginHorizontal: SPACING.md,
+  },
+  watchAdsButton: {
+    backgroundColor: COLORS.surfaceLight,
+    borderRadius: BORDER_RADIUS.md,
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  watchAdsButtonText: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
     color: COLORS.text,
+  },
+  watchAdsButtonSubtext: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textSecondary,
+    marginTop: 2,
   },
 });

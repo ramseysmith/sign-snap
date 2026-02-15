@@ -3,11 +3,16 @@ import { StyleSheet, Image, View } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withSpring,
+  runOnJS,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { COLORS, SIGNATURE_DEFAULT_SIZE, BORDER_RADIUS } from '../utils/constants';
-import { clamp } from '../utils/helpers';
+
+// Inline worklet function for clamping values
+const clamp = (value: number, min: number, max: number): number => {
+  'worklet';
+  return Math.min(Math.max(value, min), max);
+};
 
 interface SignatureDraggableProps {
   signatureBase64: string;
@@ -39,10 +44,12 @@ export default function SignatureDraggable({
 
   const panGesture = Gesture.Pan()
     .onStart(() => {
+      'worklet';
       startX.value = translateX.value;
       startY.value = translateY.value;
     })
     .onUpdate((event) => {
+      'worklet';
       const newX = clamp(
         startX.value + event.translationX,
         0,
@@ -57,28 +64,36 @@ export default function SignatureDraggable({
       translateY.value = newY;
     })
     .onEnd(() => {
-      onPositionChange?.(
-        translateX.value,
-        translateY.value,
-        initialWidth * scale.value,
-        initialHeight * scale.value
-      );
+      'worklet';
+      if (onPositionChange) {
+        runOnJS(onPositionChange)(
+          translateX.value,
+          translateY.value,
+          initialWidth * scale.value,
+          initialHeight * scale.value
+        );
+      }
     });
 
   const pinchGesture = Gesture.Pinch()
     .onStart(() => {
+      'worklet';
       savedScale.value = scale.value;
     })
     .onUpdate((event) => {
+      'worklet';
       scale.value = clamp(savedScale.value * event.scale, 0.5, 3);
     })
     .onEnd(() => {
-      onPositionChange?.(
-        translateX.value,
-        translateY.value,
-        initialWidth * scale.value,
-        initialHeight * scale.value
-      );
+      'worklet';
+      if (onPositionChange) {
+        runOnJS(onPositionChange)(
+          translateX.value,
+          translateY.value,
+          initialWidth * scale.value,
+          initialHeight * scale.value
+        );
+      }
     });
 
   const composedGestures = Gesture.Simultaneous(panGesture, pinchGesture);

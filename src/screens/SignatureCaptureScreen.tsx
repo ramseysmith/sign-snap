@@ -15,6 +15,7 @@ import { useDocumentStore } from '../store/useDocumentStore';
 import { useSignatureStore } from '../store/useSignatureStore';
 import { processSignatureImage, generateSignatureId } from '../services/signatureService';
 import ActionButton from '../components/ActionButton';
+import { useInterstitialAd } from '../hooks/useInterstitialAd';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../utils/constants';
 
 type ScreenState = 'capture' | 'preview' | 'name';
@@ -36,6 +37,7 @@ export default function SignatureCaptureScreen({
   const cameraRef = useRef<CameraView>(null);
   const { setSignature, currentPage } = useDocumentStore();
   const { addSignature, setActiveSignature } = useSignatureStore();
+  const { showAd } = useInterstitialAd();
 
   useEffect(() => {
     if (permission && !permission.granted && permission.canAskAgain) {
@@ -117,7 +119,11 @@ export default function SignatureCaptureScreen({
     addSignature(newSignature);
     setActiveSignature(newSignature);
     setSignature(processedBase64);
-    navigation.navigate('PlaceSignature', { pageIndex: currentPage });
+
+    // Show interstitial ad after creating signature, then navigate
+    showAd(() => {
+      navigation.navigate('PlaceSignature', { pageIndex: currentPage });
+    });
   };
 
   // Permission loading state

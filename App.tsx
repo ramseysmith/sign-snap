@@ -1,5 +1,5 @@
 import 'react-native-gesture-handler';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet, View } from 'react-native';
@@ -14,7 +14,7 @@ import AnimatedSplash from './src/components/AnimatedSplash';
 import { COLORS } from './src/utils/constants';
 
 export default function App() {
-  const [showSplash, setShowSplash] = useState(true);
+  const [animationComplete, setAnimationComplete] = useState(false);
   const [isReady, setIsReady] = useState(false);
 
   const [fontsLoaded] = useFonts({
@@ -47,14 +47,15 @@ export default function App() {
     initialize();
   }, []);
 
-  const handleSplashComplete = () => {
-    if (fontsLoaded && isReady) {
-      setShowSplash(false);
-    }
-  };
+  const handleSplashComplete = useCallback(() => {
+    setAnimationComplete(true);
+  }, []);
+
+  // Determine if we should show splash
+  const showSplash = !animationComplete || !fontsLoaded || !isReady;
 
   // Show animated splash while loading
-  if (showSplash || !fontsLoaded || !isReady) {
+  if (showSplash) {
     return (
       <View style={styles.container}>
         <StatusBar style="light" />

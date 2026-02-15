@@ -61,7 +61,8 @@ export default function AppNavigator() {
           component={SignatureScreen}
           options={{
             title: 'Signature',
-            presentation: 'modal',
+            presentation: 'card',
+            gestureEnabled: false,
           }}
         />
         <Stack.Screen

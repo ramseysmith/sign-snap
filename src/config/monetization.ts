@@ -40,11 +40,19 @@ export const ADMOB_CONFIG = {
     android: 'ca-app-pub-8327362355420246/8199288012',
     default: 'ca-app-pub-8327362355420246/8199288012',
   }) as string,
+
+  // Rewarded Ad Unit IDs (for earning extra document signings)
+  rewardedAdUnitId: Platform.select({
+    ios: 'ca-app-pub-8327362355420246/6756022442',
+    android: 'ca-app-pub-8327362355420246/6756022442',
+    default: 'ca-app-pub-8327362355420246/6756022442',
+  }) as string,
 };
 
 // Free Tier Limits
 export const FREE_TIER_LIMITS = {
-  maxSavedSignatures: 2,
+  maxDocumentSignings: 2, // Free users can sign 2 documents
+  rewardedAdsPerDocument: 5, // Watch 5 rewarded ads to earn 1 more document signing
   showAds: true,
 };
 
@@ -52,8 +60,8 @@ export const FREE_TIER_LIMITS = {
 export const PREMIUM_BENEFITS = [
   {
     icon: 'unlimited',
-    title: 'Unlimited Signatures',
-    description: 'Save as many signatures as you need',
+    title: 'Unlimited Document Signing',
+    description: 'Sign as many documents as you need',
   },
   {
     icon: 'no-ads',

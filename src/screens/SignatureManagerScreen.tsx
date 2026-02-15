@@ -4,15 +4,12 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
 } from 'react-native';
 import { SignatureManagerScreenProps, SignatureType } from '../types';
 import { useSignatureStore } from '../store/useSignatureStore';
 import SignatureTypeToggle from '../components/SignatureTypeToggle';
 import SignaturePreviewCard from '../components/SignaturePreviewCard';
 import ActionButton from '../components/ActionButton';
-import UpgradePrompt from '../components/UpgradePrompt';
-import { useSignatureLimit } from '../hooks/useSignatureLimit';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../utils/constants';
 
 export default function SignatureManagerScreen({
@@ -20,7 +17,6 @@ export default function SignatureManagerScreen({
 }: SignatureManagerScreenProps) {
   const [signatureType, setSignatureType] = useState<SignatureType>('signature');
   const { savedSignatures, removeSignature } = useSignatureStore();
-  const { checkAndProceed, currentCount, isPremium, maxSignatures } = useSignatureLimit();
 
   const filteredSignatures = useMemo(
     () => savedSignatures.filter((s) => s.type === signatureType),
@@ -32,9 +28,8 @@ export default function SignatureManagerScreen({
   };
 
   const handleCreateNew = () => {
-    checkAndProceed(() => {
-      navigation.navigate('Signature', { signatureType });
-    });
+    // No signature limit - users can create unlimited signatures
+    navigation.navigate('Signature', { signatureType });
   };
 
   return (
@@ -70,28 +65,7 @@ export default function SignatureManagerScreen({
             </Text>
             <Text style={styles.statLabel}>Initials</Text>
           </View>
-          {!isPremium && (
-            <>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>
-                  {currentCount}/{maxSignatures}
-                </Text>
-                <Text style={styles.statLabel}>Limit</Text>
-              </View>
-            </>
-          )}
         </View>
-
-        {!isPremium && (
-          <View style={styles.upgradeContainer}>
-            <UpgradePrompt
-              currentCount={currentCount}
-              itemType={signatureType}
-              variant="card"
-            />
-          </View>
-        )}
 
         {filteredSignatures.length > 0 ? (
           <View style={styles.listContainer}>
@@ -191,9 +165,6 @@ const styles = StyleSheet.create({
     width: 1,
     backgroundColor: COLORS.border,
     marginHorizontal: SPACING.lg,
-  },
-  upgradeContainer: {
-    marginTop: SPACING.lg,
   },
   listContainer: {
     marginTop: SPACING.xl,

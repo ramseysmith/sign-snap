@@ -17,6 +17,7 @@ import { generateSignatureId } from '../services/signatureService';
 import FontSelector from '../components/FontSelector';
 import TypedSignaturePreview from '../components/TypedSignaturePreview';
 import ActionButton from '../components/ActionButton';
+import { useInterstitialAd } from '../hooks/useInterstitialAd';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../utils/constants';
 
 const AVAILABLE_FONTS: SignatureFont[] = [
@@ -43,6 +44,7 @@ export default function SignatureTypedScreen({
   const viewShotRef = useRef<ViewShot>(null);
   const { setSignature, currentPage } = useDocumentStore();
   const { addSignature, setActiveSignature } = useSignatureStore();
+  const { showAd } = useInterstitialAd();
 
   const handleContinue = () => {
     if (!text.trim()) {
@@ -96,7 +98,11 @@ export default function SignatureTypedScreen({
       addSignature(newSignature);
       setActiveSignature(newSignature);
       setSignature(base64);
-      navigation.navigate('PlaceSignature', { pageIndex: currentPage });
+
+      // Show interstitial ad after creating signature, then navigate
+      showAd(() => {
+        navigation.navigate('PlaceSignature', { pageIndex: currentPage });
+      });
     } catch (error) {
       console.error('Error creating typed signature:', error);
       Alert.alert('Error', 'Failed to create signature. Please try again.');
@@ -122,16 +128,18 @@ export default function SignatureTypedScreen({
             </Text>
           </View>
 
-          <ViewShot
-            ref={viewShotRef}
-            options={{ format: 'png', quality: 1.0 }}
-          >
-            <TypedSignaturePreview
-              text={text}
-              font={selectedFont}
-              signatureType={signatureType}
-            />
-          </ViewShot>
+          <View style={styles.previewWrapper}>
+            <ViewShot
+              ref={viewShotRef}
+              options={{ format: 'png', quality: 1.0, result: 'data-uri' }}
+            >
+              <TypedSignaturePreview
+                text={text}
+                font={selectedFont}
+                signatureType={signatureType}
+              />
+            </ViewShot>
+          </View>
 
           <TextInput
             style={styles.nameInput}
@@ -204,16 +212,18 @@ export default function SignatureTypedScreen({
         />
 
         <Text style={styles.previewLabel}>Preview</Text>
-        <ViewShot
-          ref={viewShotRef}
-          options={{ format: 'png', quality: 1.0 }}
-        >
-          <TypedSignaturePreview
-            text={text}
-            font={selectedFont}
-            signatureType={signatureType}
-          />
-        </ViewShot>
+        <View style={styles.previewWrapper}>
+          <ViewShot
+            ref={viewShotRef}
+            options={{ format: 'png', quality: 1.0, result: 'data-uri' }}
+          >
+            <TypedSignaturePreview
+              text={text}
+              font={selectedFont}
+              signatureType={signatureType}
+            />
+          </ViewShot>
+        </View>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -272,6 +282,11 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: SPACING.lg,
     marginBottom: SPACING.sm,
+  },
+  previewWrapper: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BORDER_RADIUS.md,
+    overflow: 'hidden',
   },
   nameInput: {
     backgroundColor: COLORS.surface,

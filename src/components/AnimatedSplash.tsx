@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import Svg, {
   Defs,
   LinearGradient,
@@ -15,41 +15,133 @@ const PURPLE = '#6C63FF';
 const CYAN = '#00D9FF';
 const BG = '#0F0F1A';
 
-const { width, height } = Dimensions.get('window');
+const AnimatedG = Animated.createAnimatedComponent(G);
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 interface AnimatedSplashProps {
   onAnimationComplete?: () => void;
 }
 
 export default function AnimatedSplash({ onAnimationComplete }: AnimatedSplashProps) {
-  const [phase, setPhase] = useState(0);
-  const fadeAnim = new Animated.Value(1);
+  // Animation values
+  const containerOpacity = useRef(new Animated.Value(1)).current;
+  const penOpacity = useRef(new Animated.Value(0)).current;
+  const penTranslateY = useRef(new Animated.Value(-20)).current;
+  const strokeOpacity = useRef(new Animated.Value(0)).current;
+  const titleOpacity = useRef(new Animated.Value(0)).current;
+  const titleTranslateY = useRef(new Animated.Value(15)).current;
+  const taglineOpacity = useRef(new Animated.Value(0)).current;
+  const glowScale = useRef(new Animated.Value(0.8)).current;
+  const glowOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase(1), 100);   // pen fades in
-    const t2 = setTimeout(() => setPhase(2), 600);   // stroke draws
-    const t3 = setTimeout(() => setPhase(3), 1600);  // text fades in
-    const t4 = setTimeout(() => setPhase(4), 2400);  // tagline
-    const t5 = setTimeout(() => {
-      // Fade out and call complete
-      Animated.timing(fadeAnim, {
+    const sequence = Animated.sequence([
+      // Initial delay
+      Animated.delay(200),
+
+      // Glow fades in and scales up
+      Animated.parallel([
+        Animated.timing(glowOpacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.ease),
+        }),
+        Animated.timing(glowScale, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.ease),
+        }),
+      ]),
+
+      // Pen drops in smoothly
+      Animated.parallel([
+        Animated.timing(penOpacity, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.ease),
+        }),
+        Animated.spring(penTranslateY, {
+          toValue: 0,
+          tension: 50,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]),
+
+      // Short pause
+      Animated.delay(200),
+
+      // Signature stroke fades in
+      Animated.timing(strokeOpacity, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.ease),
+      }),
+
+      // Title slides up and fades in
+      Animated.parallel([
+        Animated.timing(titleOpacity, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.ease),
+        }),
+        Animated.spring(titleTranslateY, {
+          toValue: 0,
+          tension: 50,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]),
+
+      // Tagline fades in
+      Animated.timing(taglineOpacity, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.ease),
+      }),
+
+      // Hold for a moment
+      Animated.delay(600),
+
+      // Fade out everything
+      Animated.timing(containerOpacity, {
         toValue: 0,
         duration: 400,
         useNativeDriver: true,
-      }).start(() => {
-        onAnimationComplete?.();
-      });
-    }, 3200);
+        easing: Easing.in(Easing.ease),
+      }),
+    ]);
 
-    return () => [t1, t2, t3, t4, t5].forEach(clearTimeout);
+    sequence.start(() => {
+      onAnimationComplete?.();
+    });
+
+    return () => {
+      sequence.stop();
+    };
   }, []);
 
   return (
-    <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+    <Animated.View style={[styles.container, { opacity: containerOpacity }]}>
       {/* Subtle radial glow effect */}
-      <View style={styles.glowContainer}>
+      <Animated.View
+        style={[
+          styles.glowContainer,
+          {
+            opacity: glowOpacity,
+            transform: [{ scale: glowScale }],
+          }
+        ]}
+      >
         <View style={styles.glow} />
-      </View>
+      </Animated.View>
 
       {/* Icon area */}
       <View style={styles.iconContainer}>
@@ -65,66 +157,70 @@ export default function AnimatedSplash({ onAnimationComplete }: AnimatedSplashPr
             </LinearGradient>
           </Defs>
 
-          {/* Pen */}
-          <G
-            transform="translate(142, 28) rotate(-45)"
-            opacity={phase >= 1 ? 1 : 0}
-          >
-            {/* Shaft */}
-            <Rect x={-7} y={-42} width={14} height={38} rx={2} fill="url(#penGrad)" />
-            {/* Band */}
-            <Rect x={-8} y={-6} width={16} height={4} rx={1} fill="#ADA6FF" />
-            {/* Nib */}
-            <Polygon points="-7,-2 7,-2 2,14 -2,14" fill="#C4BFFF" />
-            {/* Tip */}
-            <Polygon points="-2,14 2,14 0,22" fill="#E0DDFF" />
+          {/* Pen - wrapped in Animated.View for animation */}
+          <G transform="translate(142, 28) rotate(-45)">
+            <AnimatedG style={{ opacity: penOpacity }}>
+              {/* Shaft */}
+              <Rect x={-7} y={-42} width={14} height={38} rx={2} fill="url(#penGrad)" />
+              {/* Band */}
+              <Rect x={-8} y={-6} width={16} height={4} rx={1} fill="#ADA6FF" />
+              {/* Nib */}
+              <Polygon points="-7,-2 7,-2 2,14 -2,14" fill="#C4BFFF" />
+              {/* Tip */}
+              <Polygon points="-2,14 2,14 0,22" fill="#E0DDFF" />
+            </AnimatedG>
           </G>
 
           {/* Signature stroke */}
-          <Path
+          <AnimatedPath
             d="M 10,130 C 40,100 70,90 95,100 C 120,110 110,135 135,125 C 155,117 160,98 178,92"
             stroke="url(#strokeGrad)"
             strokeWidth={5}
             fill="none"
             strokeLinecap="round"
             strokeLinejoin="round"
-            opacity={phase >= 2 ? 1 : 0}
+            style={{ opacity: strokeOpacity }}
           />
 
           {/* Tail flick */}
-          <Path
+          <AnimatedPath
             d="M 178,92 C 183,88 188,82 186,76"
             stroke={CYAN}
             strokeWidth={3}
             fill="none"
             strokeLinecap="round"
-            opacity={phase >= 2 ? 0.8 : 0}
+            style={{ opacity: strokeOpacity }}
           />
 
           {/* Start dot */}
-          <Circle
+          <AnimatedCircle
             cx={10}
             cy={130}
             r={2.5}
             fill={PURPLE}
-            opacity={phase >= 2 ? 0.7 : 0}
+            style={{ opacity: strokeOpacity }}
           />
         </Svg>
       </View>
 
       {/* App name */}
-      <View style={[styles.titleContainer, { opacity: phase >= 3 ? 1 : 0 }]}>
+      <Animated.View
+        style={[
+          styles.titleContainer,
+          {
+            opacity: titleOpacity,
+            transform: [{ translateY: titleTranslateY }],
+          }
+        ]}
+      >
         <Text style={styles.titleWhite}>Sign</Text>
         <Text style={styles.titleGradient}>Snap</Text>
-      </View>
+      </Animated.View>
 
       {/* Tagline */}
-      <Text style={[styles.tagline, { opacity: phase >= 4 ? 1 : 0 }]}>
+      <Animated.Text style={[styles.tagline, { opacity: taglineOpacity }]}>
         SIGN ANYWHERE
-      </Text>
-
-      {/* Bottom accent line */}
-      <View style={[styles.bottomLine, { opacity: phase >= 4 ? 0.3 : 0 }]} />
+      </Animated.Text>
     </Animated.View>
   );
 }
@@ -153,7 +249,7 @@ const styles = StyleSheet.create({
     height: 300,
     borderRadius: 150,
     backgroundColor: PURPLE,
-    opacity: 0.08,
+    opacity: 0.1,
   },
   iconContainer: {
     width: 200,
@@ -174,21 +270,13 @@ const styles = StyleSheet.create({
     fontSize: 38,
     fontWeight: '700',
     letterSpacing: 1.5,
-    color: PURPLE, // Can't do gradient text easily in RN, using solid purple
+    color: PURPLE,
   },
   tagline: {
-    marginTop: 10,
-    fontSize: 14,
-    fontWeight: '400',
-    letterSpacing: 3,
+    marginTop: 12,
+    fontSize: 13,
+    fontWeight: '500',
+    letterSpacing: 4,
     color: '#6B6B8D',
-  },
-  bottomLine: {
-    position: 'absolute',
-    bottom: 48,
-    width: 30,
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: PURPLE,
   },
 });
