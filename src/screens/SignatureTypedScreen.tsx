@@ -8,6 +8,8 @@ import {
   Platform,
   ScrollView,
   Alert,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import ViewShot from 'react-native-view-shot';
 import { SignatureTypedScreenProps, SignatureFont, SavedSignature } from '../types';
@@ -42,7 +44,7 @@ export default function SignatureTypedScreen({
   const [showNameInput, setShowNameInput] = useState(false);
 
   const viewShotRef = useRef<ViewShot>(null);
-  const { setSignature, currentPage } = useDocumentStore();
+  const { setSignature, currentPage, currentDocumentUri } = useDocumentStore();
   const { addSignature, setActiveSignature } = useSignatureStore();
   const { showAd } = useInterstitialAd();
 
@@ -101,7 +103,15 @@ export default function SignatureTypedScreen({
 
       // Show interstitial ad after creating signature, then navigate
       showAd(() => {
-        navigation.navigate('PlaceSignature', { pageIndex: currentPage });
+        if (currentDocumentUri) {
+          navigation.navigate('PlaceSignature', { pageIndex: currentPage });
+        } else {
+          Alert.alert(
+            'Signature Saved',
+            'Your signature has been saved. Upload a document to use it.',
+            [{ text: 'OK', onPress: () => navigation.goBack() }]
+          );
+        }
       });
     } catch (error) {
       console.error('Error creating typed signature:', error);
@@ -113,7 +123,73 @@ export default function SignatureTypedScreen({
 
   if (showNameInput) {
     return (
-      <View style={styles.container}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <View style={styles.container}>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.header}>
+              <Text style={styles.title}>
+                Name Your {signatureType === 'signature' ? 'Signature' : 'Initials'}
+              </Text>
+              <Text style={styles.subtitle}>
+                Give it a name so you can identify it later
+              </Text>
+            </View>
+
+            <View style={styles.previewWrapper}>
+              <ViewShot
+                ref={viewShotRef}
+                options={{ format: 'png', quality: 1.0, result: 'data-uri' }}
+              >
+                <TypedSignaturePreview
+                  text={text}
+                  font={selectedFont}
+                  signatureType={signatureType}
+                />
+              </ViewShot>
+            </View>
+
+            <TextInput
+              style={styles.nameInput}
+              value={signatureName}
+              onChangeText={setSignatureName}
+              placeholder="Enter a name..."
+              placeholderTextColor={COLORS.textMuted}
+              returnKeyType="done"
+              onSubmitEditing={Keyboard.dismiss}
+            />
+          </ScrollView>
+
+          <View style={styles.footer}>
+            <ActionButton
+              title="Back"
+              onPress={() => setShowNameInput(false)}
+              variant="outline"
+              style={styles.button}
+              disabled={isProcessing}
+            />
+            <ActionButton
+              title={isProcessing ? 'Saving...' : 'Save & Use'}
+              onPress={handleSave}
+              style={styles.button}
+              loading={isProcessing}
+              disabled={isProcessing}
+            />
+          </View>
+        </View>
+      </TouchableWithoutFeedback>
+    );
+  }
+
+  return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
@@ -121,13 +197,38 @@ export default function SignatureTypedScreen({
         >
           <View style={styles.header}>
             <Text style={styles.title}>
-              Name Your {signatureType === 'signature' ? 'Signature' : 'Initials'}
+              Type Your {signatureType === 'signature' ? 'Signature' : 'Initials'}
             </Text>
             <Text style={styles.subtitle}>
-              Give it a name so you can identify it later
+              Enter your {signatureType === 'signature' ? 'name' : 'initials'} and choose a style
             </Text>
           </View>
 
+          <TextInput
+            style={styles.textInput}
+            value={text}
+            onChangeText={setText}
+            placeholder={
+              signatureType === 'signature'
+                ? 'Enter your name...'
+                : 'Enter your initials...'
+            }
+            placeholderTextColor={COLORS.textMuted}
+            autoFocus
+            autoCapitalize={signatureType === 'initials' ? 'characters' : 'words'}
+            maxLength={signatureType === 'initials' ? 5 : 50}
+            returnKeyType="done"
+            onSubmitEditing={Keyboard.dismiss}
+          />
+
+          <FontSelector
+            fonts={AVAILABLE_FONTS}
+            selectedFont={selectedFont}
+            onFontSelect={setSelectedFont}
+            previewText={text || (signatureType === 'signature' ? 'Name' : 'AB')}
+          />
+
+          <Text style={styles.previewLabel}>Preview</Text>
           <View style={styles.previewWrapper}>
             <ViewShot
               ref={viewShotRef}
@@ -140,107 +241,24 @@ export default function SignatureTypedScreen({
               />
             </ViewShot>
           </View>
-
-          <TextInput
-            style={styles.nameInput}
-            value={signatureName}
-            onChangeText={setSignatureName}
-            placeholder="Enter a name..."
-            placeholderTextColor={COLORS.textMuted}
-          />
         </ScrollView>
 
         <View style={styles.footer}>
           <ActionButton
-            title="Back"
-            onPress={() => setShowNameInput(false)}
+            title="Cancel"
+            onPress={() => navigation.goBack()}
             variant="outline"
             style={styles.button}
-            disabled={isProcessing}
           />
           <ActionButton
-            title={isProcessing ? 'Saving...' : 'Save & Use'}
-            onPress={handleSave}
+            title="Continue"
+            onPress={handleContinue}
             style={styles.button}
-            loading={isProcessing}
-            disabled={isProcessing}
+            disabled={!text.trim()}
           />
         </View>
-      </View>
-    );
-  }
-
-  return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.header}>
-          <Text style={styles.title}>
-            Type Your {signatureType === 'signature' ? 'Signature' : 'Initials'}
-          </Text>
-          <Text style={styles.subtitle}>
-            Enter your {signatureType === 'signature' ? 'name' : 'initials'} and choose a style
-          </Text>
-        </View>
-
-        <TextInput
-          style={styles.textInput}
-          value={text}
-          onChangeText={setText}
-          placeholder={
-            signatureType === 'signature'
-              ? 'Enter your name...'
-              : 'Enter your initials...'
-          }
-          placeholderTextColor={COLORS.textMuted}
-          autoFocus
-          autoCapitalize={signatureType === 'initials' ? 'characters' : 'words'}
-          maxLength={signatureType === 'initials' ? 5 : 50}
-        />
-
-        <FontSelector
-          fonts={AVAILABLE_FONTS}
-          selectedFont={selectedFont}
-          onFontSelect={setSelectedFont}
-          previewText={text || (signatureType === 'signature' ? 'Name' : 'AB')}
-        />
-
-        <Text style={styles.previewLabel}>Preview</Text>
-        <View style={styles.previewWrapper}>
-          <ViewShot
-            ref={viewShotRef}
-            options={{ format: 'png', quality: 1.0, result: 'data-uri' }}
-          >
-            <TypedSignaturePreview
-              text={text}
-              font={selectedFont}
-              signatureType={signatureType}
-            />
-          </ViewShot>
-        </View>
-      </ScrollView>
-
-      <View style={styles.footer}>
-        <ActionButton
-          title="Cancel"
-          onPress={() => navigation.goBack()}
-          variant="outline"
-          style={styles.button}
-        />
-        <ActionButton
-          title="Continue"
-          onPress={handleContinue}
-          style={styles.button}
-          disabled={!text.trim()}
-        />
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </TouchableWithoutFeedback>
   );
 }
 

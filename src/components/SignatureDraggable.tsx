@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, Image, View } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
+  useDerivedValue,
   runOnJS,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -42,6 +43,17 @@ export default function SignatureDraggable({
   const startX = useSharedValue(0);
   const startY = useSharedValue(0);
 
+  // Calculate current dimensions based on scale
+  const currentWidth = useDerivedValue(() => initialWidth * scale.value);
+  const currentHeight = useDerivedValue(() => initialHeight * scale.value);
+
+  // Report initial position on mount
+  useEffect(() => {
+    if (onPositionChange) {
+      onPositionChange(initialX, initialY, initialWidth, initialHeight);
+    }
+  }, []);
+
   const panGesture = Gesture.Pan()
     .onStart(() => {
       'worklet';
@@ -53,12 +65,12 @@ export default function SignatureDraggable({
       const newX = clamp(
         startX.value + event.translationX,
         0,
-        containerWidth - initialWidth * scale.value
+        containerWidth - currentWidth.value
       );
       const newY = clamp(
         startY.value + event.translationY,
         0,
-        containerHeight - initialHeight * scale.value
+        containerHeight - currentHeight.value
       );
       translateX.value = newX;
       translateY.value = newY;
@@ -69,8 +81,8 @@ export default function SignatureDraggable({
         runOnJS(onPositionChange)(
           translateX.value,
           translateY.value,
-          initialWidth * scale.value,
-          initialHeight * scale.value
+          currentWidth.value,
+          currentHeight.value
         );
       }
     });
@@ -82,7 +94,14 @@ export default function SignatureDraggable({
     })
     .onUpdate((event) => {
       'worklet';
-      scale.value = clamp(savedScale.value * event.scale, 0.5, 3);
+      const newScale = clamp(savedScale.value * event.scale, 0.5, 3);
+      const newWidth = initialWidth * newScale;
+      const newHeight = initialHeight * newScale;
+
+      // Clamp position to keep signature within bounds after resize
+      translateX.value = clamp(translateX.value, 0, containerWidth - newWidth);
+      translateY.value = clamp(translateY.value, 0, containerHeight - newHeight);
+      scale.value = newScale;
     })
     .onEnd(() => {
       'worklet';
@@ -90,20 +109,20 @@ export default function SignatureDraggable({
         runOnJS(onPositionChange)(
           translateX.value,
           translateY.value,
-          initialWidth * scale.value,
-          initialHeight * scale.value
+          currentWidth.value,
+          currentHeight.value
         );
       }
     });
 
   const composedGestures = Gesture.Simultaneous(panGesture, pinchGesture);
 
+  // Use left/top positioning instead of translate + scale to ensure accurate coordinates
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: translateX.value },
-      { translateY: translateY.value },
-      { scale: scale.value },
-    ],
+    left: translateX.value,
+    top: translateY.value,
+    width: currentWidth.value,
+    height: currentHeight.value,
   }));
 
   return (
@@ -112,7 +131,7 @@ export default function SignatureDraggable({
         <View style={styles.signatureWrapper}>
           <Image
             source={{ uri: signatureBase64 }}
-            style={[styles.signature, { width: initialWidth, height: initialHeight }]}
+            style={styles.signature}
             resizeMode="contain"
           />
         </View>
@@ -125,18 +144,21 @@ export default function SignatureDraggable({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 0,
-    left: 0,
   },
   signatureWrapper: {
+    flex: 1,
     borderWidth: 2,
     borderColor: COLORS.primary,
     borderStyle: 'dashed',
     borderRadius: BORDER_RADIUS.sm,
-    padding: 4,
     backgroundColor: 'rgba(108, 99, 255, 0.1)',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   signature: {
+    width: '100%',
+    height: '100%',
     backgroundColor: 'transparent',
   },
   resizeHandle: {

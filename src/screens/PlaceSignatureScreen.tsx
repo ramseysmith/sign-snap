@@ -148,7 +148,7 @@ export default function PlaceSignatureScreen({
     setIsProcessing(true);
 
     try {
-      // Signature position is already relative to the PDF area (SignatureDraggable is inside PDF bounds)
+      // Signature position is relative to the un-zoomed PDF overlay
       const placement = {
         x: signaturePosition.x,
         y: signaturePosition.y,
@@ -238,7 +238,7 @@ export default function PlaceSignatureScreen({
     <View style={styles.container}>
       <View style={styles.instructionContainer}>
         <Text style={styles.instruction}>
-          Drag to position • Pinch to resize
+          Drag signature to position • Pinch signature to resize
         </Text>
       </View>
 
@@ -251,7 +251,9 @@ export default function PlaceSignatureScreen({
           onPageChanged={(page) => handlePageChange(page - 1)}
           enablePaging={true}
           horizontal={true}
-          fitPolicy={0}
+          fitPolicy={2}
+          minScale={1.0}
+          maxScale={1.0}
         />
 
         {containerDimensions.width > 0 && (() => {
@@ -286,6 +288,7 @@ export default function PlaceSignatureScreen({
             </View>
           );
         })()}
+
       </View>
 
       <PageSelector

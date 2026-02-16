@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -6,22 +6,23 @@ import {
   SafeAreaView,
   Alert,
   Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
-  withDelay,
-  withTiming,
   FadeInDown,
   FadeInUp,
 } from 'react-native-reanimated';
 import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { HomeScreenProps } from '../types';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { usePermissions } from '../hooks/usePermissions';
 import { useIsPremium } from '../store/useSubscriptionStore';
+import { imagesToPdf } from '../services/pdfService';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ANIMATION } from '../utils/constants';
 import BannerAd from '../components/BannerAd';
 
@@ -121,15 +122,63 @@ function LinkButton({ title, onPress, delay = 0 }: LinkButtonProps) {
 }
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
-  const { setCurrentDocument } = useDocumentStore();
-  const { requestCameraPermission } = usePermissions();
+  const { setCurrentDocument, resetWorkflow } = useDocumentStore();
+  const { requestCameraPermission, requestMediaLibraryPermission } = usePermissions();
   const isPremium = useIsPremium();
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleScanDocument = async () => {
+  const handleUseCamera = async () => {
     const granted = await requestCameraPermission();
     if (granted) {
       navigation.navigate('Camera');
     }
+  };
+
+  const handlePickFromLibrary = async () => {
+    const granted = await requestMediaLibraryPermission();
+    if (!granted) return;
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+        allowsMultipleSelection: true,
+      });
+
+      if (result.canceled || result.assets.length === 0) {
+        return;
+      }
+
+      setIsProcessing(true);
+      const imageUris = result.assets.map((asset) => asset.uri);
+      const pdfUri = await imagesToPdf(imageUris);
+      const documentName = `Scanned_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setCurrentDocument(pdfUri, documentName);
+      navigation.navigate('DocumentPreview', {
+        documentUri: pdfUri,
+        documentName,
+        isFromCamera: true,
+      });
+    } catch (error) {
+      console.error('Error picking images:', error);
+      Alert.alert('Error', 'Failed to process images. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleScanDocument = () => {
+    Alert.alert(
+      'Add Document',
+      'How would you like to add your document?',
+      [
+        { text: 'Use Camera', onPress: handleUseCamera },
+        { text: 'Choose from Library', onPress: handlePickFromLibrary },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
   };
 
   const handleUploadPdf = async () => {
@@ -163,6 +212,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   };
 
   const handleManageSignatures = () => {
+    resetWorkflow();
     navigation.navigate('SignatureManager');
   };
 
@@ -232,6 +282,12 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         </View>
       </View>
       <BannerAd />
+      {isProcessing && (
+        <View style={styles.processingOverlay}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.processingText}>Creating PDF...</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -362,5 +418,18 @@ const styles = StyleSheet.create({
   arrow: {
     fontSize: FONT_SIZES.md,
     color: COLORS.primary,
+  },
+  processingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100,
+  },
+  processingText: {
+    marginTop: SPACING.md,
+    color: COLORS.text,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '500',
   },
 });

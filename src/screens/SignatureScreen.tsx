@@ -95,7 +95,7 @@ export default function SignatureScreen({ navigation, route }: SignatureScreenPr
   const [isLandscape, setIsLandscape] = useState(false);
 
   const signaturePadRef = useRef<SignaturePadRef>(null);
-  const { setSignature, currentPage } = useDocumentStore();
+  const { setSignature, currentPage, currentDocumentUri } = useDocumentStore();
   const {
     savedSignatures,
     setActiveSignature,
@@ -143,7 +143,17 @@ export default function SignatureScreen({ navigation, route }: SignatureScreenPr
   const handleSelectSignature = (signature: SavedSignature) => {
     setActiveSignature(signature);
     setSignature(signature.base64);
-    navigation.navigate('PlaceSignature', { pageIndex: currentPage });
+
+    if (currentDocumentUri) {
+      navigation.navigate('PlaceSignature', { pageIndex: currentPage });
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      Alert.alert(
+        'No Document',
+        'Please upload a document first to place your signature.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
+    }
   };
 
   const handleDeleteSignature = (id: string) => {
@@ -197,7 +207,15 @@ export default function SignatureScreen({ navigation, route }: SignatureScreenPr
 
     // Show interstitial ad after creating a new signature, then navigate
     showAd(() => {
-      navigation.navigate('PlaceSignature', { pageIndex: currentPage });
+      if (currentDocumentUri) {
+        navigation.navigate('PlaceSignature', { pageIndex: currentPage });
+      } else {
+        Alert.alert(
+          'Signature Saved',
+          'Your signature has been saved. Upload a document to use it.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      }
     });
   };
 

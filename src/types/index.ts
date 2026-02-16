@@ -33,6 +33,7 @@ export type RootStackParamList = {
     documentUri: string;
     documentName: string;
     isFromCamera?: boolean;
+    viewOnly?: boolean;
   };
   Signature: {
     signatureType?: SignatureType;

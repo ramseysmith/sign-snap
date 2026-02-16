@@ -4,6 +4,7 @@ import {
   cacheDirectory,
   EncodingType,
 } from 'expo-file-system/legacy';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { PDFDocument } from 'pdf-lib';
 import { decode as base64Decode, encode as base64Encode } from 'base-64';
 import { PdfDimensions, ViewDimensions, SignaturePlacement } from '../types';
@@ -86,7 +87,7 @@ export async function embedSignatureOnPdf(
     // Embed the PNG image
     const signatureImage = await pdfDoc.embedPng(signatureBytes);
 
-    // Convert UI coordinates to PDF coordinates
+    // Convert UI coordinates to PDF coordinates for the bounding box
     const pdfCoords = uiToPdfCoordinates(
       placement.x,
       placement.y,
@@ -96,12 +97,36 @@ export async function embedSignatureOnPdf(
       pdfDimensions
     );
 
-    // Draw the signature on the page
+    // Calculate aspect-ratio-preserving dimensions (like resizeMode="contain")
+    // This matches how the signature appears in the preview
+    const imageAspect = signatureImage.width / signatureImage.height;
+    const boxAspect = pdfCoords.width / pdfCoords.height;
+
+    let finalWidth: number;
+    let finalHeight: number;
+    let offsetX: number;
+    let offsetY: number;
+
+    if (imageAspect > boxAspect) {
+      // Image is wider than box - fit to width
+      finalWidth = pdfCoords.width;
+      finalHeight = pdfCoords.width / imageAspect;
+      offsetX = 0;
+      offsetY = (pdfCoords.height - finalHeight) / 2;
+    } else {
+      // Image is taller than box - fit to height
+      finalHeight = pdfCoords.height;
+      finalWidth = pdfCoords.height * imageAspect;
+      offsetX = (pdfCoords.width - finalWidth) / 2;
+      offsetY = 0;
+    }
+
+    // Draw the signature on the page, centered within the bounding box
     page.drawImage(signatureImage, {
-      x: pdfCoords.x,
-      y: pdfCoords.y,
-      width: pdfCoords.width,
-      height: pdfCoords.height,
+      x: pdfCoords.x + offsetX,
+      y: pdfCoords.y + offsetY,
+      width: finalWidth,
+      height: finalHeight,
     });
 
     // Save the modified PDF
@@ -126,19 +151,22 @@ export async function imagesToPdf(imageUris: string[]): Promise<string> {
     const pdfDoc = await PDFDocument.create();
 
     for (const imageUri of imageUris) {
-      // Read the image
-      const imageBase64 = await readAsStringAsync(imageUri, {
-        encoding: EncodingType.Base64,
-      });
-      const imageBytes = Uint8Array.from(atob(imageBase64), (c) => c.charCodeAt(0));
+      // Convert image to JPEG format to handle HEIC/HEIF and other formats
+      // This ensures compatibility with pdf-lib which only supports PNG and JPEG
+      const manipResult = await manipulateAsync(
+        imageUri,
+        [], // No transformations needed, just format conversion
+        { format: SaveFormat.JPEG, compress: 0.9, base64: true }
+      );
 
-      // Determine image type and embed accordingly
-      let image;
-      if (imageUri.toLowerCase().endsWith('.png')) {
-        image = await pdfDoc.embedPng(imageBytes);
-      } else {
-        image = await pdfDoc.embedJpg(imageBytes);
+      if (!manipResult.base64) {
+        throw new Error('Failed to convert image to JPEG');
       }
+
+      const imageBytes = Uint8Array.from(atob(manipResult.base64), (c) => c.charCodeAt(0));
+
+      // Embed as JPEG (all images are now converted to JPEG)
+      const image = await pdfDoc.embedJpg(imageBytes);
 
       // Create a page with the image dimensions
       const page = pdfDoc.addPage([image.width, image.height]);

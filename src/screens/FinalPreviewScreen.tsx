@@ -36,10 +36,10 @@ export default function FinalPreviewScreen({
   const { signedPdfUri, documentName } = route.params;
   const { addSavedDocument, resetWorkflow } = useDocumentStore();
 
-  const [isSaving, setIsSaving] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [hasCountedDocument, setHasCountedDocument] = useState(false);
+  const [hasAutoSaved, setHasAutoSaved] = useState(false);
   const { showAd } = useInterstitialAd();
   const {
     isPremium,
@@ -64,6 +64,26 @@ export default function FinalPreviewScreen({
     }
   }, [hasCountedDocument, isPremium, incrementDocumentsSigned]);
 
+  // Auto-save the document when screen loads
+  useEffect(() => {
+    const autoSaveDocument = async () => {
+      if (hasAutoSaved || isSaved) return;
+
+      try {
+        const signedName = documentName.replace('.pdf', '_signed.pdf');
+        const savedDoc = await saveDocument(signedPdfUri, signedName);
+        addSavedDocument(savedDoc);
+        setIsSaved(true);
+        setHasAutoSaved(true);
+      } catch (error) {
+        console.error('Error auto-saving document:', error);
+        // Silent fail - user can still manually save
+      }
+    };
+
+    autoSaveDocument();
+  }, [signedPdfUri, documentName, hasAutoSaved, isSaved, addSavedDocument]);
+
   const checkmarkAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: checkmarkScale.value }],
   }));
@@ -78,30 +98,12 @@ export default function FinalPreviewScreen({
     });
   };
 
-  const handleSave = async () => {
-    if (isSaved) {
-      Alert.alert('Already Saved', 'This document has already been saved.');
-      return;
-    }
-
+  const handleViewInLibrary = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Show interstitial ad before saving (for free users)
-    showAd(async () => {
-      setIsSaving(true);
-      try {
-        const signedName = documentName.replace('.pdf', '_signed.pdf');
-        const savedDoc = await saveDocument(signedPdfUri, signedName);
-        addSavedDocument(savedDoc);
-        setIsSaved(true);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert('Saved', 'Document saved to your library.');
-      } catch (error) {
-        console.error('Error saving document:', error);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        Alert.alert('Error', 'Failed to save document. Please try again.');
-      } finally {
-        setIsSaving(false);
-      }
+    resetWorkflow();
+    navigation.reset({
+      index: 1,
+      routes: [{ name: 'Home' }, { name: 'Documents' }],
     });
   };
 
@@ -128,7 +130,7 @@ export default function FinalPreviewScreen({
         </Animated.View>
         <View style={styles.successTextContainer}>
           <Text style={styles.successTitle}>Document Signed!</Text>
-          <Text style={styles.successSubtitle}>Ready to share or save</Text>
+          <Text style={styles.successSubtitle}>Saved to My Documents</Text>
         </View>
       </Animated.View>
 
@@ -156,14 +158,12 @@ export default function FinalPreviewScreen({
             accessibilityHint="Opens share sheet to share the signed document"
           />
           <ActionButton
-            title={isSaved ? 'Saved ✓' : isSaving ? 'Saving...' : 'Save'}
-            onPress={handleSave}
-            variant={isSaved ? 'secondary' : 'outline'}
-            loading={isSaving}
-            disabled={isSaving || isSaved}
+            title="My Documents"
+            onPress={handleViewInLibrary}
+            variant="outline"
             style={styles.actionButton}
-            accessibilityLabel={isSaved ? "Document saved" : "Save document"}
-            accessibilityHint="Saves the signed document to your library"
+            accessibilityLabel="View in library"
+            accessibilityHint="Opens your saved documents library"
           />
         </View>
         <ActionButton

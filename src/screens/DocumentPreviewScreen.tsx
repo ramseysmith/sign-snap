@@ -22,7 +22,7 @@ export default function DocumentPreviewScreen({
   navigation,
   route,
 }: DocumentPreviewScreenProps) {
-  const { documentUri, documentName } = route.params;
+  const { documentUri, documentName, viewOnly } = route.params;
   const {
     totalPages,
     currentPage,
@@ -143,31 +143,33 @@ export default function DocumentPreviewScreen({
         onPageSelect={handlePageChange}
       />
 
-      <Animated.View
-        style={styles.footer}
-        entering={FadeInUp.delay(200).springify()}
-      >
-        <Text style={styles.footerTitle} accessibilityRole="header">
-          What would you like to add?
-        </Text>
-        <View style={styles.buttonRow}>
-          <ActionButton
-            title="Signature"
-            onPress={handleAddSignature}
-            style={styles.signButton}
-            accessibilityLabel="Add signature"
-            accessibilityHint="Navigate to signature creation screen"
-          />
-          <ActionButton
-            title="Initials"
-            onPress={handleAddInitials}
-            variant="outline"
-            style={styles.signButton}
-            accessibilityLabel="Add initials"
-            accessibilityHint="Navigate to initials creation screen"
-          />
-        </View>
-      </Animated.View>
+      {!viewOnly && (
+        <Animated.View
+          style={styles.footer}
+          entering={FadeInUp.delay(200).springify()}
+        >
+          <Text style={styles.footerTitle} accessibilityRole="header">
+            What would you like to add?
+          </Text>
+          <View style={styles.buttonRow}>
+            <ActionButton
+              title="Signature"
+              onPress={handleAddSignature}
+              style={styles.signButton}
+              accessibilityLabel="Add signature"
+              accessibilityHint="Navigate to signature creation screen"
+            />
+            <ActionButton
+              title="Initials"
+              onPress={handleAddInitials}
+              variant="outline"
+              style={styles.signButton}
+              accessibilityLabel="Add initials"
+              accessibilityHint="Navigate to initials creation screen"
+            />
+          </View>
+        </Animated.View>
+      )}
     </View>
   );
 }

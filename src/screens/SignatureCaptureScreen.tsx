@@ -35,7 +35,7 @@ export default function SignatureCaptureScreen({
   );
 
   const cameraRef = useRef<CameraView>(null);
-  const { setSignature, currentPage } = useDocumentStore();
+  const { setSignature, currentPage, currentDocumentUri } = useDocumentStore();
   const { addSignature, setActiveSignature } = useSignatureStore();
   const { showAd } = useInterstitialAd();
 
@@ -73,7 +73,7 @@ export default function SignatureCaptureScreen({
     try {
       setIsProcessing(true);
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         quality: 0.8,
         allowsEditing: true,
         aspect: [4, 2],
@@ -122,7 +122,15 @@ export default function SignatureCaptureScreen({
 
     // Show interstitial ad after creating signature, then navigate
     showAd(() => {
-      navigation.navigate('PlaceSignature', { pageIndex: currentPage });
+      if (currentDocumentUri) {
+        navigation.navigate('PlaceSignature', { pageIndex: currentPage });
+      } else {
+        Alert.alert(
+          'Signature Saved',
+          'Your signature has been saved. Upload a document to use it.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      }
     });
   };
 

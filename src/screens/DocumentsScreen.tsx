@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,13 +13,14 @@ import { DocumentsScreenProps, SavedDocument } from '../types';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { listDocuments, deleteDocument } from '../services/fileService';
 import { shareDocument } from '../services/shareService';
+import { useInterstitialAd } from '../hooks/useInterstitialAd';
 import DocumentThumbnail from '../components/DocumentThumbnail';
 import ActionButton from '../components/ActionButton';
 import { COLORS, SPACING, FONT_SIZES } from '../utils/constants';
 
 export default function DocumentsScreen({ navigation }: DocumentsScreenProps) {
-  const { savedDocuments, addSavedDocument, removeSavedDocument, setCurrentDocument } =
-    useDocumentStore();
+  const { removeSavedDocument, setCurrentDocument } = useDocumentStore();
+  const { showAd } = useInterstitialAd();
 
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -57,12 +58,18 @@ export default function DocumentsScreen({ navigation }: DocumentsScreenProps) {
           navigation.navigate('DocumentPreview', {
             documentUri: document.uri,
             documentName: document.name,
+            viewOnly: true,
           });
         },
       },
       {
         text: 'Share',
-        onPress: () => shareDocument(document.uri),
+        onPress: () => {
+          // Show interstitial ad before sharing (for free users)
+          showAd(() => {
+            shareDocument(document.uri);
+          });
+        },
       },
       {
         text: 'Cancel',
