@@ -1,14 +1,23 @@
-import React, { useRef, useState, useMemo, useEffect } from 'react';
+import React, { useRef, useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Alert,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   SafeAreaView,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  FadeIn,
+  FadeInDown,
+  FadeInUp,
+} from 'react-native-reanimated';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import * as Haptics from 'expo-haptics';
 import {
   SignatureScreenProps,
   SignatureType,
@@ -23,9 +32,60 @@ import SignatureMethodSelector from '../components/SignatureMethodSelector';
 import SignaturePreviewCard from '../components/SignaturePreviewCard';
 import ActionButton from '../components/ActionButton';
 import { useInterstitialAd } from '../hooks/useInterstitialAd';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../utils/constants';
+import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ANIMATION } from '../utils/constants';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 type ScreenMode = 'select' | 'draw';
+
+interface HeaderButtonProps {
+  title: string;
+  onPress: () => void;
+  variant?: 'text' | 'outlined';
+  accessibilityLabel: string;
+  accessibilityHint?: string;
+}
+
+function HeaderButton({ title, onPress, variant = 'text', accessibilityLabel, accessibilityHint }: HeaderButtonProps) {
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = useCallback(() => {
+    scale.value = withSpring(0.95, ANIMATION.springBouncy);
+  }, [scale]);
+
+  const handlePressOut = useCallback(() => {
+    scale.value = withSpring(1, ANIMATION.springBouncy);
+  }, [scale]);
+
+  const handlePress = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onPress();
+  }, [onPress]);
+
+  return (
+    <AnimatedPressable
+      style={[
+        styles.headerButton,
+        variant === 'outlined' && styles.headerButtonOutlined,
+        animatedStyle,
+      ]}
+      onPress={handlePress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
+    >
+      <Text style={[styles.headerButtonText, variant === 'outlined' && styles.headerButtonTextOutlined]}>
+        {title}
+      </Text>
+    </AnimatedPressable>
+  );
+}
 
 export default function SignatureScreen({ navigation, route }: SignatureScreenProps) {
   const initialType = route.params?.signatureType || 'signature';
@@ -53,6 +113,7 @@ export default function SignatureScreen({ navigation, route }: SignatureScreenPr
   }, []);
 
   const toggleOrientation = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (isLandscape) {
       await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
       setIsLandscape(false);
@@ -91,6 +152,7 @@ export default function SignatureScreen({ navigation, route }: SignatureScreenPr
 
   // Draw mode handlers
   const handleClear = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     signaturePadRef.current?.clearSignature();
     setSignatureData(null);
   };
@@ -107,6 +169,7 @@ export default function SignatureScreen({ navigation, route }: SignatureScreenPr
 
   const handleDrawDone = () => {
     if (signaturePadRef.current?.isEmpty()) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert('No Signature', 'Please draw your signature before continuing.');
       return;
     }
@@ -130,6 +193,8 @@ export default function SignatureScreen({ navigation, route }: SignatureScreenPr
     setActiveSignature(newSignature);
     setSignature(signature);
 
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
     // Show interstitial ad after creating a new signature, then navigate
     showAd(() => {
       navigation.navigate('PlaceSignature', { pageIndex: currentPage });
@@ -140,50 +205,70 @@ export default function SignatureScreen({ navigation, route }: SignatureScreenPr
   if (screenMode === 'draw') {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.drawHeader}>
-          <TouchableOpacity onPress={handleBackToSelect} style={styles.backButton}>
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={toggleOrientation} style={styles.rotateButton}>
-            <Text style={styles.rotateButtonText}>
-              {isLandscape ? '↺ Portrait' : '↻ Landscape'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <Animated.View
+          style={styles.drawHeader}
+          entering={FadeIn.duration(200)}
+        >
+          <HeaderButton
+            title="← Back"
+            onPress={handleBackToSelect}
+            accessibilityLabel="Go back"
+            accessibilityHint="Return to signature selection"
+          />
+          <HeaderButton
+            title={isLandscape ? '↺ Portrait' : '↻ Landscape'}
+            onPress={toggleOrientation}
+            variant="outlined"
+            accessibilityLabel={isLandscape ? 'Switch to portrait' : 'Switch to landscape'}
+            accessibilityHint="Rotate the drawing canvas"
+          />
+        </Animated.View>
 
         {!isLandscape && (
-          <View style={styles.titleContainer}>
-            <Text style={styles.title}>
+          <Animated.View
+            style={styles.titleContainer}
+            entering={FadeInDown.delay(100).springify()}
+          >
+            <Text style={styles.title} accessibilityRole="header">
               Draw Your {signatureType === 'signature' ? 'Signature' : 'Initials'}
             </Text>
             <Text style={styles.subtitle}>
               Use your finger to sign in the area below
             </Text>
-          </View>
+          </Animated.View>
         )}
 
-        <View style={styles.canvasContainer}>
+        <Animated.View
+          style={styles.canvasContainer}
+          entering={FadeIn.delay(150).duration(300)}
+        >
           <SignaturePad
             ref={signaturePadRef}
             onSignatureChange={handleSignatureChange}
             penColor="#000000"
-            backgroundColor="transparent"
           />
-        </View>
+        </Animated.View>
 
-        <View style={styles.footer}>
+        <Animated.View
+          style={styles.footer}
+          entering={FadeInUp.delay(200).springify()}
+        >
           <ActionButton
             title="Clear"
             onPress={handleClear}
             variant="outline"
             style={styles.button}
+            accessibilityLabel="Clear signature"
+            accessibilityHint="Erase the current drawing"
           />
           <ActionButton
             title="Done"
             onPress={handleDrawDone}
             style={styles.button}
+            accessibilityLabel="Finish signature"
+            accessibilityHint="Save and use this signature"
           />
-        </View>
+        </Animated.View>
       </SafeAreaView>
     );
   }
@@ -196,49 +281,71 @@ export default function SignatureScreen({ navigation, route }: SignatureScreenPr
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>
+        <Animated.View
+          style={styles.header}
+          entering={FadeInDown.springify()}
+        >
+          <Text style={styles.title} accessibilityRole="header">
             {signatureType === 'signature' ? 'Signature' : 'Initials'}
           </Text>
           <Text style={styles.subtitle}>
             Select a saved {signatureType} or create a new one
           </Text>
-        </View>
+        </Animated.View>
 
-        <SignatureTypeToggle
-          selectedType={signatureType}
-          onTypeChange={setSignatureType}
-        />
+        <Animated.View entering={FadeInDown.delay(100).springify()}>
+          <SignatureTypeToggle
+            selectedType={signatureType}
+            onTypeChange={setSignatureType}
+          />
+        </Animated.View>
 
         {filteredSignatures.length > 0 && (
-          <View style={styles.savedSection}>
-            <Text style={styles.sectionTitle}>
+          <Animated.View
+            style={styles.savedSection}
+            entering={FadeInDown.delay(150).springify()}
+          >
+            <Text style={styles.sectionTitle} accessibilityRole="header">
               Saved {signatureType === 'signature' ? 'Signatures' : 'Initials'}
             </Text>
             <View style={styles.signaturesList}>
-              {filteredSignatures.map((sig) => (
-                <SignaturePreviewCard
+              {filteredSignatures.map((sig, index) => (
+                <Animated.View
                   key={sig.id}
-                  signature={sig}
-                  onSelect={() => handleSelectSignature(sig)}
-                  onDelete={() => handleDeleteSignature(sig.id)}
-                />
+                  entering={FadeInDown.delay(200 + index * 50).springify()}
+                >
+                  <SignaturePreviewCard
+                    signature={sig}
+                    onSelect={() => handleSelectSignature(sig)}
+                    onDelete={() => handleDeleteSignature(sig.id)}
+                  />
+                </Animated.View>
               ))}
             </View>
-          </View>
+          </Animated.View>
         )}
 
-        <SignatureMethodSelector onMethodSelect={handleMethodSelect} />
+        <Animated.View entering={FadeInDown.delay(200).springify()}>
+          <SignatureMethodSelector onMethodSelect={handleMethodSelect} />
+        </Animated.View>
 
         {filteredSignatures.length === 0 && (
-          <View style={styles.emptyState}>
+          <Animated.View
+            style={styles.emptyState}
+            entering={FadeIn.delay(300).duration(400)}
+          >
+            <View style={styles.emptyIconContainer}>
+              <Text style={styles.emptyIcon}>
+                {signatureType === 'signature' ? '✍️' : '🔤'}
+              </Text>
+            </View>
             <Text style={styles.emptyText}>
               No saved {signatureType === 'signature' ? 'signatures' : 'initials'} yet.
             </Text>
             <Text style={styles.emptySubtext}>
               Create one using the options above.
             </Text>
-          </View>
+          </Animated.View>
         )}
       </ScrollView>
     </View>
@@ -268,47 +375,49 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
-  },
-  titleContainer: {
-    paddingHorizontal: SPACING.lg,
-    marginTop: SPACING.sm,
-  },
-  backButton: {
-    paddingVertical: SPACING.sm,
-  },
-  backButtonText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.primary,
-  },
-  rotateButton: {
     backgroundColor: COLORS.surface,
-    paddingHorizontal: SPACING.md,
+  },
+  headerButton: {
     paddingVertical: SPACING.sm,
-    borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  headerButtonOutlined: {
+    backgroundColor: COLORS.surfaceLight,
+    borderRadius: BORDER_RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  rotateButtonText: {
-    fontSize: FONT_SIZES.sm,
+  headerButtonText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  headerButtonTextOutlined: {
     color: COLORS.text,
-    fontWeight: '500',
+  },
+  titleContainer: {
+    paddingHorizontal: SPACING.lg,
+    marginTop: SPACING.md,
   },
   title: {
     fontSize: FONT_SIZES.xl,
-    fontWeight: '600',
+    fontWeight: '700',
     color: COLORS.text,
     marginBottom: SPACING.xs,
   },
   subtitle: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.textSecondary,
+    lineHeight: 20,
   },
   savedSection: {
     marginTop: SPACING.xl,
   },
   sectionTitle: {
     fontSize: FONT_SIZES.lg,
-    fontWeight: '600',
+    fontWeight: '700',
     color: COLORS.text,
     marginBottom: SPACING.md,
   },
@@ -318,11 +427,25 @@ const styles = StyleSheet.create({
   emptyState: {
     marginTop: SPACING.xxl,
     alignItems: 'center',
+    padding: SPACING.xl,
+  },
+  emptyIconContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: BORDER_RADIUS.xl,
+    backgroundColor: COLORS.surfaceLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.lg,
+  },
+  emptyIcon: {
+    fontSize: 32,
   },
   emptyText: {
     fontSize: FONT_SIZES.md,
     color: COLORS.textSecondary,
     marginBottom: SPACING.xs,
+    fontWeight: '500',
   },
   emptySubtext: {
     fontSize: FONT_SIZES.sm,
@@ -332,11 +455,12 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: SPACING.lg,
     marginTop: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: BORDER_RADIUS.xl,
     overflow: 'hidden',
     borderWidth: 2,
     borderColor: COLORS.border,
     borderStyle: 'dashed',
+    backgroundColor: COLORS.canvas,
   },
   footer: {
     flexDirection: 'row',

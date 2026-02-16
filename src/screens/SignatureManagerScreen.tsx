@@ -5,12 +5,17 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  FadeInUp,
+} from 'react-native-reanimated';
 import { SignatureManagerScreenProps, SignatureType } from '../types';
 import { useSignatureStore } from '../store/useSignatureStore';
 import SignatureTypeToggle from '../components/SignatureTypeToggle';
 import SignaturePreviewCard from '../components/SignaturePreviewCard';
 import ActionButton from '../components/ActionButton';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../utils/constants';
+import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../utils/constants';
 
 export default function SignatureManagerScreen({
   navigation,
@@ -32,6 +37,9 @@ export default function SignatureManagerScreen({
     navigation.navigate('Signature', { signatureType });
   };
 
+  const signatureCount = savedSignatures.filter((s) => s.type === 'signature').length;
+  const initialsCount = savedSignatures.filter((s) => s.type === 'initials').length;
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -39,55 +47,78 @@ export default function SignatureManagerScreen({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>My Signatures</Text>
+        <Animated.View
+          style={styles.header}
+          entering={FadeInDown.springify()}
+        >
+          <Text style={styles.title} accessibilityRole="header">
+            My Signatures
+          </Text>
           <Text style={styles.subtitle}>
             Manage your saved signatures and initials
           </Text>
-        </View>
+        </Animated.View>
 
-        <SignatureTypeToggle
-          selectedType={signatureType}
-          onTypeChange={setSignatureType}
-        />
+        <Animated.View entering={FadeInDown.delay(100).springify()}>
+          <SignatureTypeToggle
+            selectedType={signatureType}
+            onTypeChange={setSignatureType}
+          />
+        </Animated.View>
 
-        <View style={styles.statsContainer}>
+        <Animated.View
+          style={styles.statsContainer}
+          entering={FadeInDown.delay(150).springify()}
+          accessibilityLabel={`You have ${signatureCount} signatures and ${initialsCount} initials`}
+        >
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>
-              {savedSignatures.filter((s) => s.type === 'signature').length}
+            <Text style={styles.statValue} accessibilityLabel={`${signatureCount} signatures`}>
+              {signatureCount}
             </Text>
             <Text style={styles.statLabel}>Signatures</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>
-              {savedSignatures.filter((s) => s.type === 'initials').length}
+            <Text style={styles.statValue} accessibilityLabel={`${initialsCount} initials`}>
+              {initialsCount}
             </Text>
             <Text style={styles.statLabel}>Initials</Text>
           </View>
-        </View>
+        </Animated.View>
 
         {filteredSignatures.length > 0 ? (
-          <View style={styles.listContainer}>
-            <Text style={styles.sectionTitle}>
+          <Animated.View
+            style={styles.listContainer}
+            entering={FadeInDown.delay(200).springify()}
+          >
+            <Text style={styles.sectionTitle} accessibilityRole="header">
               {signatureType === 'signature' ? 'Signatures' : 'Initials'}
             </Text>
             <View style={styles.signaturesList}>
-              {filteredSignatures.map((sig) => (
-                <SignaturePreviewCard
+              {filteredSignatures.map((sig, index) => (
+                <Animated.View
                   key={sig.id}
-                  signature={sig}
-                  onDelete={() => handleDeleteSignature(sig.id)}
-                  showActions={true}
-                />
+                  entering={FadeInDown.delay(250 + index * 50).springify()}
+                >
+                  <SignaturePreviewCard
+                    signature={sig}
+                    onDelete={() => handleDeleteSignature(sig.id)}
+                    showActions={true}
+                  />
+                </Animated.View>
               ))}
             </View>
-          </View>
+          </Animated.View>
         ) : (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>
-              {signatureType === 'signature' ? 'Signature' : 'ABC'}
-            </Text>
+          <Animated.View
+            style={styles.emptyState}
+            entering={FadeIn.delay(200).duration(400)}
+          >
+            <View style={styles.emptyIconContainer}>
+              <Text style={styles.emptyIcon}>
+                {signatureType === 'signature' ? '✍️' : '🔤'}
+              </Text>
+            </View>
             <Text style={styles.emptyText}>
               No {signatureType === 'signature' ? 'signatures' : 'initials'} saved yet
             </Text>
@@ -98,18 +129,25 @@ export default function SignatureManagerScreen({
               title={`Create ${signatureType === 'signature' ? 'Signature' : 'Initials'}`}
               onPress={handleCreateNew}
               style={styles.createButton}
+              accessibilityLabel={`Create new ${signatureType}`}
+              accessibilityHint="Opens the signature creation screen"
             />
-          </View>
+          </Animated.View>
         )}
       </ScrollView>
 
       {filteredSignatures.length > 0 && (
-        <View style={styles.footer}>
+        <Animated.View
+          style={styles.footer}
+          entering={FadeInUp.delay(300).springify()}
+        >
           <ActionButton
             title={`Create New ${signatureType === 'signature' ? 'Signature' : 'Initials'}`}
             onPress={handleCreateNew}
+            accessibilityLabel={`Create new ${signatureType}`}
+            accessibilityHint="Opens the signature creation screen"
           />
-        </View>
+        </Animated.View>
       )}
     </View>
   );
@@ -132,34 +170,40 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: FONT_SIZES.xxl,
-    fontWeight: '700',
+    fontWeight: '800',
     color: COLORS.text,
     marginBottom: SPACING.xs,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.textSecondary,
+    lineHeight: 20,
   },
   statsContainer: {
     flexDirection: 'row',
     backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: BORDER_RADIUS.xl,
     padding: SPACING.lg,
     marginTop: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    ...SHADOWS.md,
   },
   statItem: {
     flex: 1,
     alignItems: 'center',
   },
   statValue: {
-    fontSize: FONT_SIZES.xxl,
-    fontWeight: '700',
+    fontSize: 32,
+    fontWeight: '800',
     color: COLORS.primary,
   },
   statLabel: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.textSecondary,
     marginTop: SPACING.xs,
+    fontWeight: '500',
   },
   statDivider: {
     width: 1,
@@ -171,7 +215,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: FONT_SIZES.lg,
-    fontWeight: '600',
+    fontWeight: '700',
     color: COLORS.text,
     marginBottom: SPACING.md,
   },
@@ -183,34 +227,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.xl,
   },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: BORDER_RADIUS.xl,
+    backgroundColor: COLORS.surfaceLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
   emptyIcon: {
-    fontSize: FONT_SIZES.lg,
-    color: COLORS.textMuted,
-    marginBottom: SPACING.md,
-    backgroundColor: COLORS.surface,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-    overflow: 'hidden',
+    fontSize: 36,
   },
   emptyText: {
     fontSize: FONT_SIZES.lg,
-    fontWeight: '600',
+    fontWeight: '700',
     color: COLORS.text,
-    marginBottom: SPACING.xs,
+    marginBottom: SPACING.sm,
   },
   emptySubtext: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.textSecondary,
     textAlign: 'center',
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.xl,
+    lineHeight: 20,
   },
   createButton: {
     minWidth: 200,
   },
   footer: {
     padding: SPACING.lg,
+    paddingBottom: SPACING.xl,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+    ...SHADOWS.lg,
   },
 });

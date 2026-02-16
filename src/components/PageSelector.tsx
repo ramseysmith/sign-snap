@@ -1,17 +1,81 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
+  Pressable,
 } from 'react-native';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../utils/constants';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  FadeIn,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ANIMATION } from '../utils/constants';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface PageSelectorProps {
   totalPages: number;
   currentPage: number;
   onPageSelect: (page: number) => void;
+}
+
+interface PageButtonProps {
+  pageNumber: number;
+  isActive: boolean;
+  onPress: () => void;
+}
+
+function PageButton({ pageNumber, isActive, onPress }: PageButtonProps) {
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = useCallback(() => {
+    scale.value = withSpring(0.9, ANIMATION.springBouncy);
+  }, [scale]);
+
+  const handlePressOut = useCallback(() => {
+    scale.value = withSpring(1, ANIMATION.springBouncy);
+  }, [scale]);
+
+  const handlePress = useCallback(() => {
+    if (!isActive) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    onPress();
+  }, [isActive, onPress]);
+
+  return (
+    <AnimatedPressable
+      style={[
+        styles.pageButton,
+        isActive && styles.pageButtonActive,
+        animatedStyle,
+      ]}
+      onPress={handlePress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: isActive }}
+      accessibilityLabel={`Page ${pageNumber}`}
+      accessibilityHint={isActive ? 'Currently selected page' : `Go to page ${pageNumber}`}
+    >
+      <Text
+        style={[
+          styles.pageText,
+          isActive && styles.pageTextActive,
+        ]}
+      >
+        {pageNumber}
+      </Text>
+    </AnimatedPressable>
+  );
 }
 
 export default function PageSelector({
@@ -24,74 +88,77 @@ export default function PageSelector({
   }
 
   return (
-    <View style={styles.container}>
+    <Animated.View
+      style={styles.container}
+      entering={FadeIn.delay(100).duration(200)}
+    >
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        accessibilityRole="tablist"
+        accessibilityLabel="Page navigation"
       >
         {Array.from({ length: totalPages }, (_, index) => (
-          <TouchableOpacity
+          <PageButton
             key={index}
-            style={[
-              styles.pageButton,
-              currentPage === index && styles.pageButtonActive,
-            ]}
+            pageNumber={index + 1}
+            isActive={currentPage === index}
             onPress={() => onPageSelect(index)}
-          >
-            <Text
-              style={[
-                styles.pageText,
-                currentPage === index && styles.pageTextActive,
-              ]}
-            >
-              {index + 1}
-            </Text>
-          </TouchableOpacity>
+          />
         ))}
       </ScrollView>
-      <Text style={styles.pageInfo}>
+      <Text
+        style={styles.pageInfo}
+        accessibilityLabel={`Page ${currentPage + 1} of ${totalPages}`}
+        accessibilityRole="text"
+      >
         Page {currentPage + 1} of {totalPages}
       </Text>
-    </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     backgroundColor: COLORS.surface,
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.md,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
   },
   scrollContent: {
-    paddingHorizontal: SPACING.md,
+    paddingHorizontal: SPACING.lg,
     gap: SPACING.sm,
   },
   pageButton: {
-    width: 40,
-    height: 40,
-    borderRadius: BORDER_RADIUS.sm,
+    width: 44,
+    height: 44,
+    borderRadius: BORDER_RADIUS.lg,
     backgroundColor: COLORS.surfaceLight,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   pageButtonActive: {
     backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+    ...SHADOWS.glow,
   },
   pageText: {
-    fontSize: FONT_SIZES.sm,
+    fontSize: FONT_SIZES.md,
     color: COLORS.textSecondary,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   pageTextActive: {
     color: COLORS.text,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   pageInfo: {
     textAlign: 'center',
-    fontSize: FONT_SIZES.xs,
-    color: COLORS.textMuted,
-    marginTop: SPACING.xs,
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.sm,
+    fontWeight: '500',
   },
 });

@@ -1,19 +1,124 @@
-import React from 'react';
+import React, { useCallback, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   SafeAreaView,
   Alert,
+  Pressable,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withDelay,
+  withTiming,
+  FadeInDown,
+  FadeInUp,
+} from 'react-native-reanimated';
 import * as DocumentPicker from 'expo-document-picker';
+import * as Haptics from 'expo-haptics';
 import { HomeScreenProps } from '../types';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { usePermissions } from '../hooks/usePermissions';
 import { useIsPremium } from '../store/useSubscriptionStore';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../utils/constants';
+import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ANIMATION } from '../utils/constants';
 import BannerAd from '../components/BannerAd';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+interface ActionCardProps {
+  icon: string;
+  title: string;
+  description: string;
+  onPress: () => void;
+  delay?: number;
+  accessibilityHint: string;
+}
+
+function ActionCard({ icon, title, description, onPress, delay = 0, accessibilityHint }: ActionCardProps) {
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = useCallback(() => {
+    scale.value = withSpring(0.97, ANIMATION.springBouncy);
+  }, [scale]);
+
+  const handlePressOut = useCallback(() => {
+    scale.value = withSpring(1, ANIMATION.springBouncy);
+  }, [scale]);
+
+  const handlePress = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onPress();
+  }, [onPress]);
+
+  return (
+    <Animated.View entering={FadeInDown.delay(delay).springify()}>
+      <AnimatedPressable
+        style={[styles.actionCard, animatedStyle]}
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        accessibilityRole="button"
+        accessibilityLabel={title}
+        accessibilityHint={accessibilityHint}
+      >
+        <View style={styles.iconContainer}>
+          <Text style={styles.iconText}>{icon}</Text>
+        </View>
+        <View style={styles.cardContent}>
+          <Text style={styles.cardTitle}>{title}</Text>
+          <Text style={styles.cardDescription}>{description}</Text>
+        </View>
+        <View style={styles.cardArrow}>
+          <Text style={styles.cardArrowText}>›</Text>
+        </View>
+      </AnimatedPressable>
+    </Animated.View>
+  );
+}
+
+interface LinkButtonProps {
+  title: string;
+  onPress: () => void;
+  delay?: number;
+}
+
+function LinkButton({ title, onPress, delay = 0 }: LinkButtonProps) {
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = useCallback(() => {
+    scale.value = withSpring(0.95, ANIMATION.springBouncy);
+  }, [scale]);
+
+  const handlePressOut = useCallback(() => {
+    scale.value = withSpring(1, ANIMATION.springBouncy);
+  }, [scale]);
+
+  return (
+    <Animated.View entering={FadeInUp.delay(delay).springify()}>
+      <AnimatedPressable
+        style={[styles.documentsLink, animatedStyle]}
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        accessibilityRole="button"
+        accessibilityLabel={title}
+      >
+        <Text style={styles.documentsLinkText}>{title}</Text>
+        <Text style={styles.arrow}>→</Text>
+      </AnimatedPressable>
+    </Animated.View>
+  );
+}
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const { setCurrentDocument } = useDocumentStore();
@@ -40,6 +145,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
       const asset = result.assets[0];
       if (asset) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setCurrentDocument(asset.uri, asset.name);
         navigation.navigate('DocumentPreview', {
           documentUri: asset.uri,
@@ -61,6 +167,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   };
 
   const handleSubscription = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (isPremium) {
       navigation.navigate('CustomerCenter');
     } else {
@@ -71,67 +178,57 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <View style={styles.header}>
+        <Animated.View
+          style={styles.header}
+          entering={FadeInDown.delay(100).springify()}
+        >
           <View style={styles.titleRow}>
-            <Text style={styles.title}>SignSnap</Text>
-            <TouchableOpacity
+            <Text style={styles.title} accessibilityRole="header">SignSnap</Text>
+            <Pressable
               style={[styles.premiumBadge, isPremium && styles.premiumBadgeActive]}
               onPress={handleSubscription}
+              accessibilityRole="button"
+              accessibilityLabel={isPremium ? "Premium subscription active" : "Upgrade to premium"}
+              accessibilityHint={isPremium ? "View subscription details" : "View premium subscription options"}
             >
               <Text style={styles.premiumBadgeText}>
-                {isPremium ? 'Premium' : 'Upgrade'}
+                {isPremium ? '✦ Premium' : 'Upgrade'}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
           <Text style={styles.subtitle}>Sign documents in seconds</Text>
-        </View>
+        </Animated.View>
 
         <View style={styles.actions}>
-          <TouchableOpacity
-            style={styles.actionCard}
+          <ActionCard
+            icon="📷"
+            title="Scan Document"
+            description="Use your camera to scan a physical document"
             onPress={handleScanDocument}
-            activeOpacity={0.7}
-          >
-            <View style={styles.iconContainer}>
-              <Text style={styles.iconText}>📷</Text>
-            </View>
-            <Text style={styles.cardTitle}>Scan Document</Text>
-            <Text style={styles.cardDescription}>
-              Use your camera to scan a physical document
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionCard}
+            delay={200}
+            accessibilityHint="Opens camera to scan a document"
+          />
+          <ActionCard
+            icon="📄"
+            title="Upload PDF"
+            description="Choose a PDF file from your device"
             onPress={handleUploadPdf}
-            activeOpacity={0.7}
-          >
-            <View style={styles.iconContainer}>
-              <Text style={styles.iconText}>📄</Text>
-            </View>
-            <Text style={styles.cardTitle}>Upload PDF</Text>
-            <Text style={styles.cardDescription}>
-              Choose a PDF file from your device
-            </Text>
-          </TouchableOpacity>
+            delay={300}
+            accessibilityHint="Opens file picker to select a PDF"
+          />
         </View>
 
         <View style={styles.linksContainer}>
-          <TouchableOpacity
-            style={styles.documentsLink}
+          <LinkButton
+            title="My Documents"
             onPress={handleViewDocuments}
-          >
-            <Text style={styles.documentsLinkText}>My Documents</Text>
-            <Text style={styles.arrow}>→</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.documentsLink}
+            delay={400}
+          />
+          <LinkButton
+            title="My Signatures"
             onPress={handleManageSignatures}
-          >
-            <Text style={styles.documentsLinkText}>My Signatures</Text>
-            <Text style={styles.arrow}>→</Text>
-          </TouchableOpacity>
+            delay={450}
+          />
         </View>
       </View>
       <BannerAd />
@@ -149,8 +246,8 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
   },
   header: {
-    marginTop: SPACING.xxl,
-    marginBottom: SPACING.xxl,
+    marginTop: SPACING.xl,
+    marginBottom: SPACING.xl,
   },
   titleRow: {
     flexDirection: 'row',
@@ -159,77 +256,108 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs,
   },
   title: {
-    fontSize: FONT_SIZES.xxl,
-    fontWeight: 'bold',
+    fontSize: 36,
+    fontWeight: '800',
     color: COLORS.text,
+    letterSpacing: -0.5,
   },
   premiumBadge: {
     backgroundColor: COLORS.surface,
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
+    paddingVertical: SPACING.sm,
     borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: COLORS.primary,
+    ...SHADOWS.sm,
   },
   premiumBadgeActive: {
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
+    ...SHADOWS.glow,
   },
   premiumBadgeText: {
     fontSize: FONT_SIZES.xs,
-    fontWeight: '600',
+    fontWeight: '700',
     color: COLORS.text,
   },
   subtitle: {
-    fontSize: FONT_SIZES.md,
+    fontSize: FONT_SIZES.lg,
     color: COLORS.textSecondary,
+    marginTop: SPACING.xs,
   },
   actions: {
     gap: SPACING.md,
   },
   actionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
+    borderRadius: BORDER_RADIUS.xl,
     padding: SPACING.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
+    ...SHADOWS.md,
   },
   iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: BORDER_RADIUS.md,
+    width: 56,
+    height: 56,
+    borderRadius: BORDER_RADIUS.lg,
     backgroundColor: COLORS.surfaceLight,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: SPACING.md,
   },
   iconText: {
-    fontSize: 24,
+    fontSize: 28,
+  },
+  cardContent: {
+    flex: 1,
+    marginLeft: SPACING.md,
   },
   cardTitle: {
     fontSize: FONT_SIZES.lg,
     fontWeight: '600',
     color: COLORS.text,
-    marginBottom: SPACING.xs,
+    marginBottom: 2,
   },
   cardDescription: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.textSecondary,
+    lineHeight: 20,
+  },
+  cardArrow: {
+    width: 32,
+    height: 32,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.surfaceLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardArrowText: {
+    fontSize: 24,
+    color: COLORS.textSecondary,
+    fontWeight: '300',
+    marginTop: -2,
   },
   linksContainer: {
     marginTop: 'auto',
     gap: SPACING.xs,
+    paddingBottom: SPACING.md,
   },
   documentsLink: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: SPACING.md,
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   documentsLinkText: {
     fontSize: FONT_SIZES.md,
+    fontWeight: '500',
     color: COLORS.primary,
-    marginRight: SPACING.xs,
+    marginRight: SPACING.sm,
   },
   arrow: {
     fontSize: FONT_SIZES.md,
