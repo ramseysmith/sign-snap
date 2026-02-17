@@ -13,7 +13,6 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   FadeInDown,
-  FadeInUp,
 } from 'react-native-reanimated';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
@@ -83,43 +82,6 @@ function ActionCard({ icon, title, description, onPress, delay = 0, accessibilit
   );
 }
 
-interface LinkButtonProps {
-  title: string;
-  onPress: () => void;
-  delay?: number;
-}
-
-function LinkButton({ title, onPress, delay = 0 }: LinkButtonProps) {
-  const scale = useSharedValue(1);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  const handlePressIn = useCallback(() => {
-    scale.value = withSpring(0.95, ANIMATION.springBouncy);
-  }, [scale]);
-
-  const handlePressOut = useCallback(() => {
-    scale.value = withSpring(1, ANIMATION.springBouncy);
-  }, [scale]);
-
-  return (
-    <Animated.View entering={FadeInUp.delay(delay).springify()}>
-      <AnimatedPressable
-        style={[styles.documentsLink, animatedStyle]}
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        accessibilityRole="button"
-        accessibilityLabel={title}
-      >
-        <Text style={styles.documentsLinkText}>{title}</Text>
-        <Text style={styles.arrow}>→</Text>
-      </AnimatedPressable>
-    </Animated.View>
-  );
-}
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const { setCurrentDocument, resetWorkflow } = useDocumentStore();
@@ -269,15 +231,21 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         </View>
 
         <View style={styles.linksContainer}>
-          <LinkButton
+          <ActionCard
+            icon="📁"
             title="My Documents"
+            description="View and manage your signed documents"
             onPress={handleViewDocuments}
             delay={400}
+            accessibilityHint="Opens your saved documents"
           />
-          <LinkButton
+          <ActionCard
+            icon="✍️"
             title="My Signatures"
+            description="Manage your saved signatures"
             onPress={handleManageSignatures}
             delay={450}
+            accessibilityHint="Opens signature management"
           />
         </View>
       </View>
@@ -396,28 +364,8 @@ const styles = StyleSheet.create({
   },
   linksContainer: {
     marginTop: 'auto',
-    gap: SPACING.xs,
+    gap: SPACING.md,
     paddingBottom: SPACING.md,
-  },
-  documentsLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: SPACING.md,
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  documentsLinkText: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '500',
-    color: COLORS.primary,
-    marginRight: SPACING.sm,
-  },
-  arrow: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.primary,
   },
   processingOverlay: {
     ...StyleSheet.absoluteFillObject,
