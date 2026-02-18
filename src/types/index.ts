@@ -27,6 +27,7 @@ export interface SavedSignature {
 }
 
 export type RootStackParamList = {
+  Onboarding: undefined;
   Home: undefined;
   Camera: {
     croppedImageUri?: string;
@@ -62,6 +63,7 @@ export type RootStackParamList = {
   CustomerCenter: undefined;
 };
 
+export type OnboardingScreenProps = NativeStackScreenProps<RootStackParamList, 'Onboarding'>;
 export type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 export type CameraScreenProps = NativeStackScreenProps<RootStackParamList, 'Camera'>;
 export type ImageCropScreenProps = NativeStackScreenProps<RootStackParamList, 'ImageCrop'>;

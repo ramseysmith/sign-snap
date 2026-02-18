@@ -101,7 +101,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const { requestCameraPermission, requestMediaLibraryPermission } = usePermissions();
   const isPremium = useIsPremium();
   const { remainingSignings, documentsSignedCount, rewardedAdsWatched, additionalCredits } = useDocumentLimit();
-  const { showRewardedAd, isLoaded: isRewardedAdLoaded } = useRewardedAd();
+  const { showRewardedAd, isLoaded: isRewardedAdLoaded, isLoading: isAdLoading, error: adError, retryLoad } = useRewardedAd();
   const [isProcessing, setIsProcessing] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
 
@@ -153,11 +153,30 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
   const handleWatchAds = () => {
     if (!isRewardedAdLoaded) {
-      Alert.alert(
-        'Ad Not Ready',
-        'The ad is still loading. Please try again in a moment.',
-        [{ text: 'OK' }]
-      );
+      if (adError) {
+        Alert.alert(
+          'Ads Unavailable',
+          'No ads are available right now. This can happen on simulators or when network conditions are poor. Would you like to try again?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Retry', onPress: retryLoad },
+          ]
+        );
+      } else if (isAdLoading) {
+        Alert.alert(
+          'Loading Ad',
+          'The ad is still loading. Please wait a moment and try again.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        // Try to load again
+        retryLoad();
+        Alert.alert(
+          'Loading Ad',
+          'Loading an ad for you. Please try again in a few seconds.',
+          [{ text: 'OK' }]
+        );
+      }
       return;
     }
 
@@ -424,6 +443,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               variant="limit-reached"
               onUpgrade={handleUpgrade}
               onWatchAds={handleWatchAds}
+              isAdLoading={isAdLoading}
+              isAdReady={isRewardedAdLoaded}
             />
             <ActionButton
               title="Cancel"
@@ -513,9 +534,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   limitBannerSubtext: {
-    fontSize: FONT_SIZES.xs,
-    color: COLORS.primary,
-    marginTop: 2,
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.primaryLight,
+    fontWeight: '600',
+    marginTop: 4,
   },
   limitBannerWarning: {
     backgroundColor: COLORS.primaryDark,

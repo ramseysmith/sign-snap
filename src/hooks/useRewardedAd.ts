@@ -17,8 +17,12 @@ const AD_TIMEOUT_MS = 45000;
 interface UseRewardedAdReturn {
   isLoaded: boolean;
   isShowing: boolean;
+  isLoading: boolean;
+  error: string | null;
   /** Show a rewarded ad. Returns true if ad was shown, false otherwise. */
   showRewardedAd: (onRewarded?: () => void, onComplete?: () => void) => void;
+  /** Retry loading the ad */
+  retryLoad: () => void;
   /** Number of ads watched towards next credit */
   adsWatched: number;
   /** Ads remaining until next document credit */
@@ -29,11 +33,15 @@ export function useRewardedAd(): UseRewardedAdReturn {
   const isPremium = useIsPremium();
   const { addRewardedAdWatch, rewardedAdsWatched } = useSubscriptionStore();
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [isShowing, setIsShowing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const adRef = useRef<RewardedAd | null>(null);
   const onRewardedRef = useRef<(() => void) | null>(null);
   const onCompleteRef = useRef<(() => void) | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryCountRef = useRef(0);
+  const maxRetries = 3;
 
   // Helper to safely call and clear the completion callback
   const callComplete = useCallback(() => {
@@ -69,6 +77,9 @@ export function useRewardedAd(): UseRewardedAdReturn {
       RewardedAdEventType.LOADED,
       () => {
         setIsLoaded(true);
+        setIsLoading(false);
+        setError(null);
+        retryCountRef.current = 0;
       }
     );
 
@@ -89,6 +100,7 @@ export function useRewardedAd(): UseRewardedAdReturn {
       () => {
         setIsShowing(false);
         setIsLoaded(false);
+        setIsLoading(true);
 
         // Call the completion callback
         callComplete();
@@ -100,22 +112,41 @@ export function useRewardedAd(): UseRewardedAdReturn {
 
     const unsubscribeError = rewarded.addAdEventListener(
       AdEventType.ERROR,
-      (error) => {
-        console.log('Rewarded ad error:', error);
+      (adError: any) => {
+        console.log('Rewarded ad error:', adError);
         setIsShowing(false);
         setIsLoaded(false);
+        setIsLoading(false);
 
         // Call completion callback on error
         callComplete();
 
-        // Try to reload the ad
-        setTimeout(() => {
-          rewarded.load();
-        }, 1000);
+        // Handle no-fill errors with retry logic
+        const isNoFill = adError?.message?.includes('no-fill') || adError?.code === 'no-fill';
+
+        if (isNoFill && retryCountRef.current < maxRetries) {
+          retryCountRef.current += 1;
+          const retryDelay = Math.min(2000 * retryCountRef.current, 10000);
+          console.log(`Retrying ad load in ${retryDelay}ms (attempt ${retryCountRef.current}/${maxRetries})`);
+          setIsLoading(true);
+          setTimeout(() => {
+            rewarded.load();
+          }, retryDelay);
+        } else if (isNoFill) {
+          setError('No ads available right now. Please try again later.');
+        } else {
+          setError('Failed to load ad. Please try again.');
+          // Try to reload after a delay for non-no-fill errors
+          setTimeout(() => {
+            setIsLoading(true);
+            rewarded.load();
+          }, 3000);
+        }
       }
     );
 
     // Load the initial ad
+    setIsLoading(true);
     rewarded.load();
 
     return () => {
@@ -138,6 +169,7 @@ export function useRewardedAd(): UseRewardedAdReturn {
 
       if (isLoaded && adRef.current) {
         setIsShowing(true);
+        setError(null);
 
         // Set a safety timeout in case the ad gets stuck
         timeoutRef.current = setTimeout(() => {
@@ -148,6 +180,7 @@ export function useRewardedAd(): UseRewardedAdReturn {
 
           // Try to reload ad for next time
           if (adRef.current) {
+            setIsLoading(true);
             adRef.current.load();
           }
         }, AD_TIMEOUT_MS);
@@ -161,10 +194,22 @@ export function useRewardedAd(): UseRewardedAdReturn {
     [isLoaded, callComplete]
   );
 
+  const retryLoad = useCallback(() => {
+    if (adRef.current && !isLoading && !isLoaded) {
+      setError(null);
+      setIsLoading(true);
+      retryCountRef.current = 0;
+      adRef.current.load();
+    }
+  }, [isLoading, isLoaded]);
+
   return {
     isLoaded,
+    isLoading,
     isShowing,
+    error,
     showRewardedAd,
+    retryLoad,
     adsWatched: rewardedAdsWatched,
     adsUntilCredit: 5 - rewardedAdsWatched,
   };

@@ -24,6 +24,8 @@ interface UpgradePromptProps {
   variant?: 'banner' | 'card' | 'limit-reached';
   onUpgrade?: () => void;
   onWatchAds?: () => void;
+  isAdLoading?: boolean;
+  isAdReady?: boolean;
 }
 
 interface AnimatedButtonProps {
@@ -76,6 +78,8 @@ export default function UpgradePrompt({
   variant = 'banner',
   onUpgrade,
   onWatchAds,
+  isAdLoading = false,
+  isAdReady = true,
 }: UpgradePromptProps) {
   const navigation = useNavigation<NavigationProp>();
   const maxAllowed = FREE_TIER_LIMITS.maxDocumentSignings;
@@ -130,14 +134,20 @@ export default function UpgradePrompt({
         </View>
 
         <AnimatedButton
-          style={styles.watchAdsButton}
+          style={[styles.watchAdsButton, !isAdReady && styles.watchAdsButtonDisabled]}
           onPress={onWatchAds || (() => {})}
           accessibilityLabel={`Watch ${adsWatched > 0 ? adsUntilNextCredit : adsPerCredit} ads for one more document`}
           accessibilityHint="Watch rewarded ads to earn additional document signing credits"
         >
-          <Text style={styles.watchAdsButtonText}>Watch Ads for More Documents</Text>
+          <Text style={styles.watchAdsButtonText}>
+            {isAdLoading ? 'Loading Ad...' : 'Watch Ads for More Documents'}
+          </Text>
           <Text style={styles.watchAdsButtonSubtext}>
-            {adsWatched > 0
+            {isAdLoading
+              ? 'Please wait'
+              : !isAdReady
+              ? 'Tap to retry loading'
+              : adsWatched > 0
               ? `${adsUntilNextCredit} more ad${adsUntilNextCredit !== 1 ? 's' : ''} = 1 document`
               : `${adsPerCredit} ads = 1 document signing`}
           </Text>
@@ -436,6 +446,9 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     minHeight: 56,
     justifyContent: 'center',
+  },
+  watchAdsButtonDisabled: {
+    opacity: 0.7,
   },
   watchAdsButtonText: {
     fontSize: FONT_SIZES.md,
