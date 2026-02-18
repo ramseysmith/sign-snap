@@ -38,13 +38,9 @@ export default function FinalPreviewScreen({
 
   const [isSharing, setIsSharing] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
-  const [hasCountedDocument, setHasCountedDocument] = useState(false);
   const [hasAutoSaved, setHasAutoSaved] = useState(false);
   const { showAd } = useInterstitialAd();
-  const {
-    isPremium,
-    incrementDocumentsSigned,
-  } = useDocumentLimit();
+  const { isPremium } = useDocumentLimit();
   const checkmarkScale = useSharedValue(0);
 
   // Animate checkmark on mount
@@ -55,14 +51,6 @@ export default function FinalPreviewScreen({
       withSpring(1, ANIMATION.spring)
     );
   }, [checkmarkScale]);
-
-  // Count this document signing when user arrives at this screen
-  useEffect(() => {
-    if (!hasCountedDocument && !isPremium) {
-      incrementDocumentsSigned();
-      setHasCountedDocument(true);
-    }
-  }, [hasCountedDocument, isPremium, incrementDocumentsSigned]);
 
   // Auto-save the document when screen loads
   useEffect(() => {

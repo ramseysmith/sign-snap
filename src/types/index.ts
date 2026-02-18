@@ -28,7 +28,12 @@ export interface SavedSignature {
 
 export type RootStackParamList = {
   Home: undefined;
-  Camera: undefined;
+  Camera: {
+    croppedImageUri?: string;
+  } | undefined;
+  ImageCrop: {
+    imageUri: string;
+  };
   DocumentPreview: {
     documentUri: string;
     documentName: string;
@@ -59,6 +64,7 @@ export type RootStackParamList = {
 
 export type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 export type CameraScreenProps = NativeStackScreenProps<RootStackParamList, 'Camera'>;
+export type ImageCropScreenProps = NativeStackScreenProps<RootStackParamList, 'ImageCrop'>;
 export type DocumentPreviewScreenProps = NativeStackScreenProps<RootStackParamList, 'DocumentPreview'>;
 export type SignatureScreenProps = NativeStackScreenProps<RootStackParamList, 'Signature'>;
 export type SignatureCaptureScreenProps = NativeStackScreenProps<RootStackParamList, 'SignatureCapture'>;

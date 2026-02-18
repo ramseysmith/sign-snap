@@ -14,13 +14,22 @@ import { imagesToPdf } from '../services/pdfService';
 import ActionButton from '../components/ActionButton';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../utils/constants';
 
-export default function CameraScreen({ navigation }: CameraScreenProps) {
+export default function CameraScreen({ navigation, route }: CameraScreenProps) {
   const [permission, requestPermission] = useCameraPermissions();
   const { setCurrentDocument } = useDocumentStore();
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
   const cameraRef = React.useRef<CameraView>(null);
+
+  // Handle cropped image returned from ImageCrop screen
+  useEffect(() => {
+    if (route.params?.croppedImageUri) {
+      setCapturedImages((prev) => [...prev, route.params!.croppedImageUri!]);
+      // Clear the param to prevent re-adding on re-render
+      navigation.setParams({ croppedImageUri: undefined });
+    }
+  }, [route.params?.croppedImageUri]);
 
   useEffect(() => {
     if (permission && !permission.granted && permission.canAskAgain) {
@@ -38,7 +47,8 @@ export default function CameraScreen({ navigation }: CameraScreenProps) {
       });
 
       if (photo?.uri) {
-        setCapturedImages((prev) => [...prev, photo.uri]);
+        // Navigate to crop screen
+        navigation.navigate('ImageCrop', { imageUri: photo.uri });
       }
     } catch (error) {
       console.error('Error capturing photo:', error);

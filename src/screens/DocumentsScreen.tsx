@@ -122,7 +122,7 @@ export default function DocumentsScreen({ navigation }: DocumentsScreenProps) {
       </Text>
       <ActionButton
         title="Sign a Document"
-        onPress={() => navigation.navigate('Home')}
+        onPress={() => navigation.goBack()}
         style={{ marginTop: SPACING.lg }}
       />
     </View>

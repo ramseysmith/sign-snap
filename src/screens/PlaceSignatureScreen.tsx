@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,18 +7,23 @@ import {
   Alert,
   LayoutChangeEvent,
   Modal,
+  Pressable,
 } from 'react-native';
 import Pdf from 'react-native-pdf';
+import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PlaceSignatureScreenProps } from '../types';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { embedSignatureOnPdf } from '../services/pdfService';
-import SignatureDraggable from '../components/SignatureDraggable';
+import SignatureDraggable, { SignatureDraggableRef } from '../components/SignatureDraggable';
 import PageSelector from '../components/PageSelector';
 import ActionButton from '../components/ActionButton';
 import UpgradePrompt from '../components/UpgradePrompt';
 import { useDocumentLimit } from '../hooks/useDocumentLimit';
 import { useRewardedAd } from '../hooks/useRewardedAd';
-import { COLORS, SPACING, FONT_SIZES, SIGNATURE_DEFAULT_SIZE } from '../utils/constants';
+import { useSubscriptionStore } from '../store/useSubscriptionStore';
+import { FREE_TIER_LIMITS } from '../config/monetization';
+import { COLORS, SPACING, FONT_SIZES, SIGNATURE_DEFAULT_SIZE, BORDER_RADIUS } from '../utils/constants';
 
 interface PdfPageInfo {
   width: number;
@@ -65,6 +70,7 @@ export default function PlaceSignatureScreen({
     height: SIGNATURE_DEFAULT_SIZE.height,
   });
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const signatureRef = useRef<SignatureDraggableRef>(null);
 
   const {
     canSignDocument,
@@ -73,8 +79,9 @@ export default function PlaceSignatureScreen({
     documentsSignedCount,
     additionalCredits,
     rewardedAdsWatched,
+    incrementDocumentsSigned,
   } = useDocumentLimit();
-  const { showRewardedAd, isLoaded: isRewardedAdLoaded, adsUntilCredit } = useRewardedAd();
+  const { showRewardedAd, isLoaded: isRewardedAdLoaded } = useRewardedAd();
 
   // Calculate how the PDF is rendered within the container
   const getRenderedPdfInfo = useCallback((): RenderedPdfInfo | null => {
@@ -184,34 +191,88 @@ export default function PlaceSignatureScreen({
     }
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
+    // Get fresh state directly from store (not from potentially stale hook values)
+    const store = useSubscriptionStore.getState();
+    const maxFree = FREE_TIER_LIMITS.maxDocumentSignings;
+    const baseRemaining = Math.max(0, maxFree - store.documentsSignedCount);
+    const totalRemaining = baseRemaining + store.additionalDocumentCredits;
+    const canSign = store.isPremium || totalRemaining > 0;
+
+    console.log('[SIGNING] handleConfirm - count:', store.documentsSignedCount, 'credits:', store.additionalDocumentCredits, 'canSign:', canSign);
+
     // Check document limit before processing
-    if (!canSignDocument) {
+    if (!canSign) {
       setShowLimitModal(true);
       return;
     }
+
+    // Deduct from user's signing allowance (for free users)
+    if (!store.isPremium) {
+      if (store.documentsSignedCount < maxFree) {
+        // Still has free signings - increment the count
+        store.incrementDocumentsSigned();
+        console.log(`[SIGNING] Used free signing. New count: ${useSubscriptionStore.getState().documentsSignedCount}`);
+      } else if (store.additionalDocumentCredits > 0) {
+        // Using additional credits earned from ads
+        store.useDocumentCredit();
+        console.log(`[SIGNING] Used additional credit. Remaining: ${useSubscriptionStore.getState().additionalDocumentCredits}`);
+      }
+
+      // Force immediate persist to AsyncStorage
+      const updatedState = useSubscriptionStore.getState();
+      try {
+        await AsyncStorage.setItem(
+          'subscription-storage',
+          JSON.stringify({
+            state: {
+              isPremium: updatedState.isPremium,
+              documentsSignedCount: updatedState.documentsSignedCount,
+              additionalDocumentCredits: updatedState.additionalDocumentCredits,
+              rewardedAdsWatched: updatedState.rewardedAdsWatched,
+            },
+            version: 0,
+          })
+        );
+        console.log(`[SIGNING] Persisted - count: ${updatedState.documentsSignedCount}, credits: ${updatedState.additionalDocumentCredits}`);
+      } catch (e) {
+        console.error('Failed to persist document count:', e);
+      }
+    }
+
     processSignature();
   };
 
   const handleWatchAds = () => {
-    setShowLimitModal(false);
+    if (!isRewardedAdLoaded) {
+      Alert.alert(
+        'Ad Not Ready',
+        'The ad is still loading. Please try again in a moment.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    // Don't hide the modal - it will stay behind the ad and show updated progress when ad closes
     showRewardedAd(
       () => {
-        // Reward earned - check if we now have credits
-        Alert.alert(
-          'Ad Completed!',
-          `${adsUntilCredit - 1} more ad${adsUntilCredit - 1 !== 1 ? 's' : ''} until you earn another document signing.`,
-          [{ text: 'OK' }]
-        );
+        // Reward earned - modal will refresh with updated progress
       },
       () => {
-        // Ad closed - show modal again if still at limit
-        // Small delay to let state update
+        // Ad closed - check fresh state from store to see if user can now sign
+        // Use setTimeout to allow zustand state to propagate
         setTimeout(() => {
-          if (!canSignDocument) {
-            setShowLimitModal(true);
+          const state = useSubscriptionStore.getState();
+          const baseRemaining = Math.max(0, FREE_TIER_LIMITS.maxDocumentSignings - state.documentsSignedCount);
+          const totalRemaining = baseRemaining + state.additionalDocumentCredits;
+          const canSign = state.isPremium || totalRemaining > 0;
+
+          if (canSign) {
+            // User earned enough credits to sign - close modal and proceed
+            setShowLimitModal(false);
           }
-        }, 500);
+          // If still at limit, modal stays visible with updated progress
+        }, 100);
       }
     );
   };
@@ -219,6 +280,16 @@ export default function PlaceSignatureScreen({
   const handleUpgrade = () => {
     setShowLimitModal(false);
     navigation.navigate('Paywall');
+  };
+
+  const handleIncreaseSize = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    signatureRef.current?.increaseSize();
+  };
+
+  const handleDecreaseSize = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    signatureRef.current?.decreaseSize();
   };
 
   if (!currentDocumentUri || !signatureBase64) {
@@ -276,6 +347,7 @@ export default function PlaceSignatureScreen({
               pointerEvents="box-none"
             >
               <SignatureDraggable
+                ref={signatureRef}
                 signatureBase64={signatureBase64}
                 containerWidth={renderedInfo.renderedWidth}
                 containerHeight={renderedInfo.renderedHeight}
@@ -296,6 +368,29 @@ export default function PlaceSignatureScreen({
         currentPage={currentPage}
         onPageSelect={handlePageChange}
       />
+
+      {/* Size control buttons */}
+      <View style={styles.sizeControlsContainer}>
+        <Text style={styles.sizeControlsLabel}>Signature Size</Text>
+        <View style={styles.sizeControls}>
+          <Pressable
+            style={styles.sizeButton}
+            onPress={handleDecreaseSize}
+            accessibilityLabel="Decrease signature size"
+            accessibilityRole="button"
+          >
+            <Text style={styles.sizeButtonText}>−</Text>
+          </Pressable>
+          <Pressable
+            style={styles.sizeButton}
+            onPress={handleIncreaseSize}
+            accessibilityLabel="Increase signature size"
+            accessibilityRole="button"
+          >
+            <Text style={styles.sizeButtonText}>+</Text>
+          </Pressable>
+        </View>
+      </View>
 
       <View style={styles.footer}>
         <ActionButton
@@ -340,7 +435,7 @@ export default function PlaceSignatureScreen({
             <ActionButton
               title="Cancel"
               onPress={() => setShowLimitModal(false)}
-              variant="outline"
+              variant="secondary"
               style={styles.cancelButton}
             />
           </View>
@@ -388,6 +483,41 @@ const styles = StyleSheet.create({
   pdf: {
     flex: 1,
     backgroundColor: COLORS.surfaceLight,
+  },
+  sizeControlsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    backgroundColor: COLORS.surface,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    gap: SPACING.md,
+  },
+  sizeControlsLabel: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  sizeControls: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  sizeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.surfaceLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  sizeButtonText: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: COLORS.text,
   },
   footer: {
     flexDirection: 'row',

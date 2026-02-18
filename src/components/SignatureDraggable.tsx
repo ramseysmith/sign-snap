@@ -1,19 +1,24 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useImperativeHandle, forwardRef } from 'react';
 import { StyleSheet, Image, View } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   useDerivedValue,
   runOnJS,
+  withSpring,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { COLORS, SIGNATURE_DEFAULT_SIZE, BORDER_RADIUS } from '../utils/constants';
+import { COLORS, SIGNATURE_DEFAULT_SIZE, BORDER_RADIUS, ANIMATION } from '../utils/constants';
 
 // Inline worklet function for clamping values
 const clamp = (value: number, min: number, max: number): number => {
   'worklet';
   return Math.min(Math.max(value, min), max);
 };
+
+const MIN_SCALE = 0.2;
+const MAX_SCALE = 3;
+const SCALE_STEP = 0.15;
 
 interface SignatureDraggableProps {
   signatureBase64: string;
@@ -26,7 +31,12 @@ interface SignatureDraggableProps {
   onPositionChange?: (x: number, y: number, width: number, height: number) => void;
 }
 
-export default function SignatureDraggable({
+export interface SignatureDraggableRef {
+  increaseSize: () => void;
+  decreaseSize: () => void;
+}
+
+const SignatureDraggable = forwardRef<SignatureDraggableRef, SignatureDraggableProps>(function SignatureDraggable({
   signatureBase64,
   containerWidth,
   containerHeight,
@@ -35,7 +45,7 @@ export default function SignatureDraggable({
   initialWidth = SIGNATURE_DEFAULT_SIZE.width,
   initialHeight = SIGNATURE_DEFAULT_SIZE.height,
   onPositionChange,
-}: SignatureDraggableProps) {
+}, ref) {
   const translateX = useSharedValue(initialX);
   const translateY = useSharedValue(initialY);
   const scale = useSharedValue(1);
@@ -53,6 +63,38 @@ export default function SignatureDraggable({
       onPositionChange(initialX, initialY, initialWidth, initialHeight);
     }
   }, []);
+
+  // Expose resize methods via ref
+  useImperativeHandle(ref, () => ({
+    increaseSize: () => {
+      const newScale = clamp(scale.value + SCALE_STEP, MIN_SCALE, MAX_SCALE);
+      const newWidth = initialWidth * newScale;
+      const newHeight = initialHeight * newScale;
+
+      // Clamp position to keep signature within bounds
+      const clampedX = clamp(translateX.value, 0, containerWidth - newWidth);
+      const clampedY = clamp(translateY.value, 0, containerHeight - newHeight);
+
+      translateX.value = clampedX;
+      translateY.value = clampedY;
+      scale.value = withSpring(newScale, ANIMATION.springBouncy);
+
+      if (onPositionChange) {
+        onPositionChange(clampedX, clampedY, newWidth, newHeight);
+      }
+    },
+    decreaseSize: () => {
+      const newScale = clamp(scale.value - SCALE_STEP, MIN_SCALE, MAX_SCALE);
+      const newWidth = initialWidth * newScale;
+      const newHeight = initialHeight * newScale;
+
+      scale.value = withSpring(newScale, ANIMATION.springBouncy);
+
+      if (onPositionChange) {
+        onPositionChange(translateX.value, translateY.value, newWidth, newHeight);
+      }
+    },
+  }), [containerWidth, containerHeight, initialWidth, initialHeight, onPositionChange]);
 
   const panGesture = Gesture.Pan()
     .onStart(() => {
@@ -94,7 +136,7 @@ export default function SignatureDraggable({
     })
     .onUpdate((event) => {
       'worklet';
-      const newScale = clamp(savedScale.value * event.scale, 0.5, 3);
+      const newScale = clamp(savedScale.value * event.scale, MIN_SCALE, MAX_SCALE);
       const newWidth = initialWidth * newScale;
       const newHeight = initialHeight * newScale;
 
@@ -139,7 +181,9 @@ export default function SignatureDraggable({
       </Animated.View>
     </GestureDetector>
   );
-}
+});
+
+export default SignatureDraggable;
 
 const styles = StyleSheet.create({
   container: {

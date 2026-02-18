@@ -2,9 +2,16 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   InterstitialAd,
   AdEventType,
+  TestIds,
 } from 'react-native-google-mobile-ads';
 import { ADMOB_CONFIG } from '../config/monetization';
 import { useIsPremium } from '../store/useSubscriptionStore';
+
+// Use test ads in development
+const adUnitId = __DEV__ ? TestIds.INTERSTITIAL : ADMOB_CONFIG.interstitialAdUnitId;
+
+// Safety timeout in case ad gets stuck (30 seconds)
+const AD_TIMEOUT_MS = 30000;
 
 interface UseInterstitialAdReturn {
   isLoaded: boolean;
@@ -18,6 +25,22 @@ export function useInterstitialAd(): UseInterstitialAdReturn {
   const [isShowing, setIsShowing] = useState(false);
   const adRef = useRef<InterstitialAd | null>(null);
   const onCompleteRef = useRef<(() => void) | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Helper to safely call and clear the completion callback
+  const callComplete = useCallback(() => {
+    // Clear timeout if it exists
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    if (onCompleteRef.current) {
+      const callback = onCompleteRef.current;
+      onCompleteRef.current = null;
+      callback();
+    }
+  }, []);
 
   useEffect(() => {
     // Don't load ads for premium users
@@ -26,7 +49,7 @@ export function useInterstitialAd(): UseInterstitialAdReturn {
     }
 
     const interstitial = InterstitialAd.createForAdRequest(
-      ADMOB_CONFIG.interstitialAdUnitId,
+      adUnitId,
       {
         requestNonPersonalizedAdsOnly: true,
       }
@@ -48,10 +71,7 @@ export function useInterstitialAd(): UseInterstitialAdReturn {
         setIsLoaded(false);
 
         // Call the completion callback
-        if (onCompleteRef.current) {
-          onCompleteRef.current();
-          onCompleteRef.current = null;
-        }
+        callComplete();
 
         // Reload the ad for next time
         interstitial.load();
@@ -62,13 +82,16 @@ export function useInterstitialAd(): UseInterstitialAdReturn {
       AdEventType.ERROR,
       (error) => {
         console.log('Interstitial ad error:', error);
+        setIsShowing(false);
         setIsLoaded(false);
 
         // Call completion callback even on error
-        if (onCompleteRef.current) {
-          onCompleteRef.current();
-          onCompleteRef.current = null;
-        }
+        callComplete();
+
+        // Try to reload the ad
+        setTimeout(() => {
+          interstitial.load();
+        }, 1000);
       }
     );
 
@@ -79,8 +102,12 @@ export function useInterstitialAd(): UseInterstitialAdReturn {
       unsubscribeLoaded();
       unsubscribeClosed();
       unsubscribeError();
+      // Clear any pending timeout on cleanup
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
     };
-  }, [isPremium]);
+  }, [isPremium, callComplete]);
 
   const showAd = useCallback(
     (onComplete?: () => void) => {
@@ -95,13 +122,27 @@ export function useInterstitialAd(): UseInterstitialAdReturn {
 
       if (isLoaded && adRef.current) {
         setIsShowing(true);
+
+        // Set a safety timeout in case the ad gets stuck
+        timeoutRef.current = setTimeout(() => {
+          console.log('Interstitial ad timeout - forcing completion');
+          setIsShowing(false);
+          setIsLoaded(false);
+          callComplete();
+
+          // Try to reload ad for next time
+          if (adRef.current) {
+            adRef.current.load();
+          }
+        }, AD_TIMEOUT_MS);
+
         adRef.current.show();
       } else {
         // If ad isn't loaded, just call complete callback
         onComplete?.();
       }
     },
-    [isPremium, isLoaded]
+    [isPremium, isLoaded, callComplete]
   );
 
   return {

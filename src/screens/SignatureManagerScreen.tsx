@@ -51,9 +51,6 @@ export default function SignatureManagerScreen({
           style={styles.header}
           entering={FadeInDown.springify()}
         >
-          <Text style={styles.title} accessibilityRole="header">
-            My Signatures
-          </Text>
           <Text style={styles.subtitle}>
             Manage your saved signatures and initials
           </Text>
@@ -167,13 +164,6 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: SPACING.lg,
-  },
-  title: {
-    fontSize: FONT_SIZES.xxl,
-    fontWeight: '800',
-    color: COLORS.text,
-    marginBottom: SPACING.xs,
-    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: FONT_SIZES.sm,

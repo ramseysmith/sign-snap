@@ -13,6 +13,11 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  withRepeat,
+  withSequence,
+  withTiming,
+  withDelay,
+  Easing,
   FadeIn,
   FadeInDown,
   FadeInUp,
@@ -30,6 +35,7 @@ import {
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ANIMATION } from '../utils/constants';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const BENEFITS = [
@@ -50,10 +56,45 @@ const BENEFITS = [
   },
 ];
 
+interface BouncingEmojiProps {
+  emoji: string;
+  delay?: number;
+  style?: any;
+}
+
+function BouncingEmoji({ emoji, delay = 0, style }: BouncingEmojiProps) {
+  const translateY = useSharedValue(0);
+
+  React.useEffect(() => {
+    translateY.value = withDelay(
+      delay,
+      withRepeat(
+        withSequence(
+          withTiming(-6, { duration: 400 }),
+          withTiming(0, { duration: 400 })
+        ),
+        -1,
+        true
+      )
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  return (
+    <Animated.Text style={[style, animatedStyle]}>
+      {emoji}
+    </Animated.Text>
+  );
+}
+
 interface PlanCardProps {
   pkg: PurchasesPackage;
   isSelected: boolean;
   onSelect: () => void;
+  showShimmer?: boolean;
   info: {
     label: string;
     price: string;
@@ -63,8 +104,29 @@ interface PlanCardProps {
   };
 }
 
-function PlanCard({ pkg, isSelected, onSelect, info }: PlanCardProps) {
+function PlanCard({ pkg, isSelected, onSelect, showShimmer, info }: PlanCardProps) {
   const scale = useSharedValue(1);
+  const shimmerTranslate = useSharedValue(-150);
+
+  React.useEffect(() => {
+    if (showShimmer) {
+      shimmerTranslate.value = withRepeat(
+        withDelay(
+          2500,
+          withTiming(SCREEN_WIDTH, { duration: 1800, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        false
+      );
+    }
+  }, [showShimmer]);
+
+  const shimmerStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: shimmerTranslate.value },
+      { skewX: '-20deg' },
+    ],
+  }));
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -84,57 +146,69 @@ function PlanCard({ pkg, isSelected, onSelect, info }: PlanCardProps) {
   }, [onSelect]);
 
   return (
-    <AnimatedPressable
-      style={[
-        styles.planCard,
-        isSelected && styles.planCardSelected,
-        animatedStyle,
-      ]}
-      onPress={handlePress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      accessibilityRole="radio"
-      accessibilityState={{ selected: isSelected }}
-      accessibilityLabel={`${info.label} plan, ${info.price}${info.period}${info.savings ? `, ${info.savings}` : ''}`}
-    >
+    <View style={styles.planCardWrapper}>
       {info.badge && (
         <View style={[
           styles.planBadge,
-          info.badge === 'Best Value' && styles.planBadgeBestValue
+          info.badge === 'Best Value' && styles.planBadgeBestValue,
+          info.badge === 'Cheapest' && styles.planBadgeCheapest
         ]}>
           <Text style={styles.planBadgeText}>{info.badge}</Text>
         </View>
       )}
-
-      <View style={styles.planInfo}>
-        <Text style={[
-          styles.planLabel,
-          isSelected && styles.planLabelSelected
-        ]}>
-          {info.label}
-        </Text>
-        {info.savings && (
-          <Text style={styles.planSavings}>{info.savings}</Text>
+      <AnimatedPressable
+        style={[
+          styles.planCard,
+          isSelected && styles.planCardSelected,
+          showShimmer && styles.planCardShimmer,
+          animatedStyle,
+        ]}
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        accessibilityRole="radio"
+        accessibilityState={{ selected: isSelected }}
+        accessibilityLabel={`${info.label} plan, ${info.price}${info.period}${info.savings ? `, ${info.savings}` : ''}`}
+      >
+        {showShimmer && (
+          <AnimatedLinearGradient
+            colors={['transparent', 'rgba(255,255,255,0.3)', 'transparent']}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={[styles.planShimmer, shimmerStyle]}
+          />
         )}
-      </View>
 
-      <View style={styles.planPriceContainer}>
-        <Text style={[
-          styles.planPrice,
-          isSelected && styles.planPriceSelected
+        <View style={styles.planInfo}>
+          <Text style={[
+            styles.planLabel,
+            isSelected && styles.planLabelSelected
+          ]}>
+            {info.label}
+          </Text>
+          {info.savings && (
+            <Text style={styles.planSavings}>{info.savings}</Text>
+          )}
+        </View>
+
+        <View style={styles.planPriceContainer}>
+          <Text style={[
+            styles.planPrice,
+            isSelected && styles.planPriceSelected
+          ]}>
+            {info.price}
+          </Text>
+          <Text style={styles.planPeriod}>{info.period}</Text>
+        </View>
+
+        <View style={[
+          styles.radioButton,
+          isSelected && styles.radioButtonSelected
         ]}>
-          {info.price}
-        </Text>
-        <Text style={styles.planPeriod}>{info.period}</Text>
-      </View>
-
-      <View style={[
-        styles.radioButton,
-        isSelected && styles.radioButtonSelected
-      ]}>
-        {isSelected && <View style={styles.radioButtonInner} />}
-      </View>
-    </AnimatedPressable>
+          {isSelected && <View style={styles.radioButtonInner} />}
+        </View>
+      </AnimatedPressable>
+    </View>
   );
 }
 
@@ -165,15 +239,15 @@ export default function PaywallScreen({ navigation }: PaywallScreenProps) {
   }, []);
 
   useEffect(() => {
-    // Auto-select the yearly package (best value)
+    // Auto-select the weekly package (cheapest)
     if (availablePackages.length > 0 && !selectedPackage) {
-      const yearlyPkg = availablePackages.find(
-        (pkg) => pkg.packageType === 'ANNUAL'
+      const weeklyPkg = availablePackages.find(
+        (pkg) => pkg.packageType === 'WEEKLY'
       );
       const monthlyPkg = availablePackages.find(
         (pkg) => pkg.packageType === 'MONTHLY'
       );
-      setSelectedPackage(yearlyPkg || monthlyPkg || availablePackages[0]);
+      setSelectedPackage(weeklyPkg || monthlyPkg || availablePackages[0]);
     }
   }, [availablePackages, selectedPackage]);
 
@@ -242,7 +316,7 @@ export default function PaywallScreen({ navigation }: PaywallScreenProps) {
           price: price,
           period: '/week',
           savings: null,
-          badge: null,
+          badge: 'Cheapest',
         };
       case 'MONTHLY':
         return {
@@ -302,23 +376,22 @@ export default function PaywallScreen({ navigation }: PaywallScreenProps) {
           end={{ x: 1, y: 1 }}
           style={styles.header}
         >
-          <Pressable
-            style={styles.closeButton}
-            onPress={handleClose}
-            accessibilityRole="button"
-            accessibilityLabel="Close paywall"
-          >
-            <Text style={styles.closeButtonText}>✕</Text>
-          </Pressable>
-
-          <View style={styles.headerContent}>
-            <Text style={styles.premiumIcon}>👑</Text>
-            <Text style={styles.headerTitle} accessibilityRole="header">
-              Go Premium
-            </Text>
-            <Text style={styles.headerSubtitle}>
-              Unlock the full power of SignSnap
-            </Text>
+          <View style={styles.headerRow}>
+            <View style={styles.headerSpacer} />
+            <View style={styles.headerContent}>
+              <BouncingEmoji emoji="👑" style={styles.premiumIcon} delay={0} />
+              <Text style={styles.headerTitle} accessibilityRole="header">
+                Go Premium
+              </Text>
+            </View>
+            <Pressable
+              style={styles.closeButton}
+              onPress={handleClose}
+              accessibilityRole="button"
+              accessibilityLabel="Close paywall"
+            >
+              <Text style={styles.closeButtonText}>✕</Text>
+            </Pressable>
           </View>
         </LinearGradient>
       </Animated.View>
@@ -367,6 +440,7 @@ export default function PaywallScreen({ navigation }: PaywallScreenProps) {
             {availablePackages.map((pkg, index) => {
               const info = getPackageInfo(pkg);
               const isSelected = selectedPackage?.identifier === pkg.identifier;
+              const isYearly = pkg.packageType === 'ANNUAL';
 
               return (
                 <Animated.View
@@ -378,6 +452,7 @@ export default function PaywallScreen({ navigation }: PaywallScreenProps) {
                     isSelected={isSelected}
                     onSelect={() => setSelectedPackage(pkg)}
                     info={info}
+                    showShimmer={isYearly}
                   />
                 </Animated.View>
               );
@@ -451,74 +526,71 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    paddingTop: 60,
-    paddingBottom: 32,
-    paddingHorizontal: SPACING.lg,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    paddingTop: 54,
+    paddingBottom: 14,
+    paddingHorizontal: SPACING.md,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerSpacer: {
+    width: 32,
+    height: 32,
   },
   closeButton: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 44,
-    minHeight: 44,
   },
   closeButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
   },
   headerContent: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 16,
+    justifyContent: 'center',
+    gap: 10,
   },
   premiumIcon: {
-    fontSize: 52,
-    marginBottom: 12,
+    fontSize: 28,
   },
   headerTitle: {
-    fontSize: 34,
+    fontSize: 24,
     fontWeight: '800',
     color: '#FFFFFF',
-    marginBottom: 8,
     letterSpacing: -0.5,
-  },
-  headerSubtitle: {
-    fontSize: 17,
-    color: 'rgba(255,255,255,0.9)',
-    textAlign: 'center',
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: SPACING.lg,
-    paddingBottom: SPACING.xl,
+    flexGrow: 1,
+    padding: SPACING.md,
   },
   benefitsSection: {
-    marginBottom: SPACING.xl,
+    flex: 1,
+    justifyContent: 'space-evenly',
   },
   benefitRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: SPACING.md,
     backgroundColor: COLORS.surface,
     padding: SPACING.md,
+    paddingHorizontal: SPACING.lg,
     borderRadius: BORDER_RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
-    ...SHADOWS.sm,
   },
   benefitIconContainer: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     borderRadius: BORDER_RADIUS.lg,
     backgroundColor: COLORS.surfaceLight,
     alignItems: 'center',
@@ -526,7 +598,7 @@ const styles = StyleSheet.create({
     marginRight: SPACING.md,
   },
   benefitIcon: {
-    fontSize: 24,
+    fontSize: 22,
   },
   benefitTextContainer: {
     flex: 1,
@@ -540,7 +612,6 @@ const styles = StyleSheet.create({
   benefitDescription: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.textSecondary,
-    lineHeight: 18,
   },
   loadingContainer: {
     alignItems: 'center',
@@ -553,41 +624,57 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   plansSection: {
-    gap: SPACING.md,
+    flex: 1,
+    justifyContent: 'space-evenly',
+  },
+  planCardWrapper: {
+    position: 'relative',
+    marginTop: 10,
   },
   planCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.xl,
-    padding: SPACING.lg,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
     borderWidth: 2,
     borderColor: COLORS.border,
-    position: 'relative',
-    overflow: 'visible',
-    minHeight: 76,
-    ...SHADOWS.sm,
+    overflow: 'hidden',
+    minHeight: 56,
   },
   planCardSelected: {
     borderColor: COLORS.primary,
     backgroundColor: 'rgba(108, 99, 255, 0.08)',
     ...SHADOWS.glow,
   },
+  planCardShimmer: {
+    borderColor: '#FFB800',
+  },
+  planShimmer: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 40,
+    left: 0,
+  },
   planBadge: {
     position: 'absolute',
-    top: -12,
-    left: SPACING.lg,
+    top: 0,
+    left: SPACING.md,
     backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 4,
+    paddingHorizontal: SPACING.xs,
+    paddingVertical: 2,
     borderRadius: BORDER_RADIUS.sm,
-    ...SHADOWS.sm,
+    zIndex: 10,
   },
   planBadgeBestValue: {
     backgroundColor: '#FFB800',
   },
+  planBadgeCheapest: {
+    backgroundColor: '#4CAF50',
+  },
   planBadgeText: {
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: '800',
     color: '#FFFFFF',
     textTransform: 'uppercase',
@@ -597,7 +684,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   planLabel: {
-    fontSize: FONT_SIZES.lg,
+    fontSize: FONT_SIZES.md,
     fontWeight: '700',
     color: COLORS.text,
   },
@@ -605,17 +692,16 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
   planSavings: {
-    fontSize: FONT_SIZES.xs,
+    fontSize: 10,
     color: '#4CAF50',
     fontWeight: '700',
-    marginTop: 2,
   },
   planPriceContainer: {
     alignItems: 'flex-end',
-    marginRight: SPACING.md,
+    marginRight: SPACING.sm,
   },
   planPrice: {
-    fontSize: FONT_SIZES.lg,
+    fontSize: FONT_SIZES.md,
     fontWeight: '800',
     color: COLORS.text,
   },
@@ -623,13 +709,13 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
   planPeriod: {
-    fontSize: FONT_SIZES.xs,
+    fontSize: 10,
     color: COLORS.textSecondary,
   },
   radioButton: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     borderWidth: 2,
     borderColor: COLORS.border,
     alignItems: 'center',
@@ -639,21 +725,20 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
   },
   radioButtonInner: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: COLORS.primary,
   },
   footer: {
-    padding: SPACING.lg,
-    paddingBottom: 34,
+    padding: SPACING.md,
+    paddingBottom: 24,
     backgroundColor: COLORS.surface,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
-    ...SHADOWS.lg,
   },
   subscribeButton: {
-    borderRadius: BORDER_RADIUS.xl,
+    borderRadius: BORDER_RADIUS.lg,
     overflow: 'hidden',
     ...SHADOWS.md,
     shadowColor: COLORS.primary,
@@ -662,10 +747,10 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   subscribeButtonGradient: {
-    paddingVertical: 18,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 56,
+    minHeight: 48,
   },
   subscribeButtonText: {
     fontSize: FONT_SIZES.lg,
@@ -675,21 +760,20 @@ const styles = StyleSheet.create({
   },
   restoreButton: {
     alignItems: 'center',
-    paddingVertical: SPACING.md,
-    marginTop: SPACING.sm,
-    minHeight: 44,
+    paddingVertical: SPACING.xs,
+    marginTop: SPACING.xs,
+    minHeight: 36,
     justifyContent: 'center',
   },
   restoreButtonText: {
-    fontSize: FONT_SIZES.sm,
+    fontSize: FONT_SIZES.xs,
     color: COLORS.primary,
     fontWeight: '600',
   },
   legalText: {
-    fontSize: 11,
+    fontSize: 10,
     color: COLORS.textMuted,
     textAlign: 'center',
-    marginTop: SPACING.xs,
-    lineHeight: 16,
+    marginTop: 2,
   },
 });

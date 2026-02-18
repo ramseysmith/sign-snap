@@ -6,6 +6,7 @@ import { COLORS } from '../utils/constants';
 
 import HomeScreen from '../screens/HomeScreen';
 import CameraScreen from '../screens/CameraScreen';
+import ImageCropScreen from '../screens/ImageCropScreen';
 import DocumentPreviewScreen from '../screens/DocumentPreviewScreen';
 import SignatureScreen from '../screens/SignatureScreen';
 import SignatureCaptureScreen from '../screens/SignatureCaptureScreen';
@@ -49,6 +50,14 @@ export default function AppNavigator() {
           options={{
             title: 'Scan Document',
             headerTransparent: true,
+          }}
+        />
+        <Stack.Screen
+          name="ImageCrop"
+          component={ImageCropScreen}
+          options={{
+            title: 'Crop Image',
+            presentation: 'modal',
           }}
         />
         <Stack.Screen
@@ -105,7 +114,7 @@ export default function AppNavigator() {
           name="Paywall"
           component={PaywallScreen}
           options={{
-            title: 'Premium',
+            headerShown: false,
             presentation: 'modal',
           }}
         />

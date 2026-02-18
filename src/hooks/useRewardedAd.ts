@@ -3,9 +3,16 @@ import {
   RewardedAd,
   RewardedAdEventType,
   AdEventType,
+  TestIds,
 } from 'react-native-google-mobile-ads';
 import { ADMOB_CONFIG } from '../config/monetization';
 import { useSubscriptionStore, useIsPremium } from '../store/useSubscriptionStore';
+
+// Use test ads in development
+const adUnitId = __DEV__ ? TestIds.REWARDED : ADMOB_CONFIG.rewardedAdUnitId;
+
+// Safety timeout in case ad gets stuck (45 seconds for rewarded - they're longer)
+const AD_TIMEOUT_MS = 45000;
 
 interface UseRewardedAdReturn {
   isLoaded: boolean;
@@ -26,6 +33,22 @@ export function useRewardedAd(): UseRewardedAdReturn {
   const adRef = useRef<RewardedAd | null>(null);
   const onRewardedRef = useRef<(() => void) | null>(null);
   const onCompleteRef = useRef<(() => void) | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Helper to safely call and clear the completion callback
+  const callComplete = useCallback(() => {
+    // Clear timeout if it exists
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    if (onCompleteRef.current) {
+      const callback = onCompleteRef.current;
+      onCompleteRef.current = null;
+      callback();
+    }
+  }, []);
 
   useEffect(() => {
     // Premium users don't need rewarded ads
@@ -34,7 +57,7 @@ export function useRewardedAd(): UseRewardedAdReturn {
     }
 
     const rewarded = RewardedAd.createForAdRequest(
-      ADMOB_CONFIG.rewardedAdUnitId,
+      adUnitId,
       {
         requestNonPersonalizedAdsOnly: true,
       }
@@ -68,10 +91,7 @@ export function useRewardedAd(): UseRewardedAdReturn {
         setIsLoaded(false);
 
         // Call the completion callback
-        if (onCompleteRef.current) {
-          onCompleteRef.current();
-          onCompleteRef.current = null;
-        }
+        callComplete();
 
         // Reload the ad for next time
         rewarded.load();
@@ -82,13 +102,16 @@ export function useRewardedAd(): UseRewardedAdReturn {
       AdEventType.ERROR,
       (error) => {
         console.log('Rewarded ad error:', error);
+        setIsShowing(false);
         setIsLoaded(false);
 
         // Call completion callback on error
-        if (onCompleteRef.current) {
-          onCompleteRef.current();
-          onCompleteRef.current = null;
-        }
+        callComplete();
+
+        // Try to reload the ad
+        setTimeout(() => {
+          rewarded.load();
+        }, 1000);
       }
     );
 
@@ -100,8 +123,12 @@ export function useRewardedAd(): UseRewardedAdReturn {
       unsubscribeEarned();
       unsubscribeClosed();
       unsubscribeError();
+      // Clear any pending timeout on cleanup
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
     };
-  }, [isPremium, addRewardedAdWatch]);
+  }, [isPremium, addRewardedAdWatch, callComplete]);
 
   const showRewardedAd = useCallback(
     (onRewarded?: () => void, onComplete?: () => void) => {
@@ -111,13 +138,27 @@ export function useRewardedAd(): UseRewardedAdReturn {
 
       if (isLoaded && adRef.current) {
         setIsShowing(true);
+
+        // Set a safety timeout in case the ad gets stuck
+        timeoutRef.current = setTimeout(() => {
+          console.log('Rewarded ad timeout - forcing completion');
+          setIsShowing(false);
+          setIsLoaded(false);
+          callComplete();
+
+          // Try to reload ad for next time
+          if (adRef.current) {
+            adRef.current.load();
+          }
+        }, AD_TIMEOUT_MS);
+
         adRef.current.show();
       } else {
         // If ad isn't loaded, just call complete callback
         onComplete?.();
       }
     },
-    [isLoaded]
+    [isLoaded, callComplete]
   );
 
   return {
