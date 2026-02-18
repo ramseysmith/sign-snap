@@ -24,6 +24,32 @@ import CustomerCenterScreen from '../screens/CustomerCenterScreen';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function AppNavigator() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+
+  useEffect(() => {
+    checkOnboardingStatus();
+  }, []);
+
+  const checkOnboardingStatus = async () => {
+    try {
+      const value = await AsyncStorage.getItem(ONBOARDING_KEY);
+      setHasCompletedOnboarding(value === 'true');
+    } catch (error) {
+      console.error('Error checking onboarding status:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
+
   return (
     <NavigationContainer>
       <Stack.Navigator
