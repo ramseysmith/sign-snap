@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet, View } from 'react-native';
 import { useFonts } from 'expo-font';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import { DancingScript_400Regular } from '@expo-google-fonts/dancing-script';
 import { GreatVibes_400Regular } from '@expo-google-fonts/great-vibes';
 import { Pacifico_400Regular } from '@expo-google-fonts/pacifico';
@@ -28,6 +29,9 @@ export default function App() {
   useEffect(() => {
     const initialize = async () => {
       try {
+        // Lock orientation to portrait globally
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+
         // Lazy load and initialize monetization services
         // This prevents crashes if native modules have issues
         const { initializePurchases } = await import('./src/services/purchaseService');

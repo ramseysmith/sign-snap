@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import Pdf from 'react-native-pdf';
 import * as Haptics from 'expo-haptics';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PlaceSignatureScreenProps } from '../types';
 import { useDocumentStore } from '../store/useDocumentStore';
@@ -82,6 +83,11 @@ export default function PlaceSignatureScreen({
     incrementDocumentsSigned,
   } = useDocumentLimit();
   const { showRewardedAd, isLoaded: isRewardedAdLoaded } = useRewardedAd();
+
+  // Ensure portrait orientation on this screen
+  useEffect(() => {
+    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+  }, []);
 
   // Calculate how the PDF is rendered within the container
   const getRenderedPdfInfo = useCallback((): RenderedPdfInfo | null => {

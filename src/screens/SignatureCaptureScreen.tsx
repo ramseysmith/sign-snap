@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import { SignatureCaptureScreenProps, SavedSignature } from '../types';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { useSignatureStore } from '../store/useSignatureStore';
@@ -38,6 +39,11 @@ export default function SignatureCaptureScreen({
   const { setSignature, currentPage, currentDocumentUri } = useDocumentStore();
   const { addSignature, setActiveSignature } = useSignatureStore();
   const { showAd } = useInterstitialAd();
+
+  // Ensure portrait orientation on this screen
+  useEffect(() => {
+    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+  }, []);
 
   useEffect(() => {
     if (permission && !permission.granted && permission.canAskAgain) {

@@ -3,9 +3,9 @@ import { Platform } from 'react-native';
 // RevenueCat Configuration
 export const REVENUECAT_CONFIG = {
   apiKey: Platform.select({
-    ios: 'test_twKLQWNtCZOtmiEAPZhzQyKfwON',
+    ios: 'appl_UCnwSotSwLUADxEIbuAbqBGcldj',
     android: 'test_twKLQWNtCZOtmiEAPZhzQyKfwON',
-    default: 'test_twKLQWNtCZOtmiEAPZhzQyKfwON',
+    default: 'appl_UCnwSotSwLUADxEIbuAbqBGcldj',
   }) as string,
   entitlementId: 'SignSnap Premium',
   offeringId: 'default',

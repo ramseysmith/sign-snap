@@ -129,18 +129,28 @@ export default function SignatureScreen({ navigation, route }: SignatureScreenPr
     [savedSignatures, signatureType]
   );
 
-  const handleMethodSelect = (method: SignatureInputMethod) => {
+  const handleMethodSelect = async (method: SignatureInputMethod) => {
     // No signature limit - users can create unlimited signatures
     if (method === 'draw') {
       setScreenMode('draw');
     } else if (method === 'image') {
+      // Ensure portrait before navigating
+      await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+      setIsLandscape(false);
       navigation.navigate('SignatureCapture', { signatureType });
     } else if (method === 'typed') {
+      // Ensure portrait before navigating
+      await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+      setIsLandscape(false);
       navigation.navigate('SignatureTyped', { signatureType });
     }
   };
 
-  const handleSelectSignature = (signature: SavedSignature) => {
+  const handleSelectSignature = async (signature: SavedSignature) => {
+    // Lock to portrait before navigating
+    await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+    setIsLandscape(false);
+
     setActiveSignature(signature);
     setSignature(signature.base64);
 
@@ -186,8 +196,12 @@ export default function SignatureScreen({ navigation, route }: SignatureScreenPr
     signaturePadRef.current?.getSignature();
   };
 
-  const handleSignatureChange = (signature: string) => {
+  const handleSignatureChange = async (signature: string) => {
     setSignatureData(signature);
+
+    // Lock to portrait before navigating
+    await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+    setIsLandscape(false);
 
     // Create and save the new signature
     const newSignature: SavedSignature = {
