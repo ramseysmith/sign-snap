@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,29 +7,14 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import * as ImagePicker from 'expo-image-picker';
+import * as Haptics from 'expo-haptics';
 import { CameraScreenProps } from '../types';
-import { useDocumentStore } from '../store/useDocumentStore';
-import { imagesToPdf } from '../services/pdfService';
 import ActionButton from '../components/ActionButton';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../utils/constants';
 
-export default function CameraScreen({ navigation, route }: CameraScreenProps) {
+export default function CameraScreen({ navigation }: CameraScreenProps) {
   const [permission, requestPermission] = useCameraPermissions();
-  const { setCurrentDocument } = useDocumentStore();
-
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [capturedImages, setCapturedImages] = useState<string[]>([]);
   const cameraRef = React.useRef<CameraView>(null);
-
-  // Handle cropped image returned from ImageCrop screen
-  useEffect(() => {
-    if (route.params?.croppedImageUri) {
-      setCapturedImages((prev) => [...prev, route.params!.croppedImageUri!]);
-      // Clear the param to prevent re-adding on re-render
-      navigation.setParams({ croppedImageUri: undefined });
-    }
-  }, [route.params?.croppedImageUri]);
 
   useEffect(() => {
     if (permission && !permission.granted && permission.canAskAgain) {
@@ -47,60 +32,14 @@ export default function CameraScreen({ navigation, route }: CameraScreenProps) {
       });
 
       if (photo?.uri) {
-        // Navigate to crop screen
-        navigation.navigate('ImageCrop', { imageUri: photo.uri });
+        // Navigate to crop screen with single image
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        navigation.replace('ImageCrop', { imageUri: photo.uri });
       }
     } catch (error) {
       console.error('Error capturing photo:', error);
       Alert.alert('Error', 'Failed to capture photo. Please try again.');
     }
-  };
-
-  const handlePickImage = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        quality: 0.8,
-        allowsMultipleSelection: true,
-      });
-
-      if (!result.canceled && result.assets.length > 0) {
-        const newUris = result.assets.map((asset) => asset.uri);
-        setCapturedImages((prev) => [...prev, ...newUris]);
-      }
-    } catch (error) {
-      console.error('Error picking images:', error);
-      Alert.alert('Error', 'Failed to pick images. Please try again.');
-    }
-  };
-
-  const handleDone = async () => {
-    if (capturedImages.length === 0) {
-      Alert.alert('No Images', 'Please capture or select at least one image.');
-      return;
-    }
-
-    setIsProcessing(true);
-    try {
-      const pdfUri = await imagesToPdf(capturedImages);
-      const documentName = `Scanned_${new Date().toISOString().slice(0, 10)}.pdf`;
-
-      setCurrentDocument(pdfUri, documentName);
-      navigation.replace('DocumentPreview', {
-        documentUri: pdfUri,
-        documentName,
-        isFromCamera: true,
-      });
-    } catch (error) {
-      console.error('Error creating PDF:', error);
-      Alert.alert('Error', 'Failed to create PDF from images. Please try again.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleRemoveImage = (index: number) => {
-    setCapturedImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   if (!permission) {
@@ -147,50 +86,23 @@ export default function CameraScreen({ navigation, route }: CameraScreenProps) {
             </View>
           </View>
 
-          {capturedImages.length > 0 && (
-            <View style={styles.imageCounter}>
-              <Text style={styles.counterText}>
-                {capturedImages.length} page{capturedImages.length > 1 ? 's' : ''} captured
-              </Text>
-            </View>
-          )}
+          <View style={styles.instructionContainer}>
+            <Text style={styles.instructionText}>
+              Position your document within the frame
+            </Text>
+          </View>
         </View>
       </CameraView>
 
       <View style={styles.controls}>
-        <ActionButton
-          title="Gallery"
-          onPress={handlePickImage}
-          variant="secondary"
-          size="small"
-          disabled={isProcessing}
-        />
-
         <View style={styles.captureButtonContainer}>
           <ActionButton
             title=""
             onPress={handleCapture}
-            disabled={isProcessing}
             style={styles.captureButton}
           />
         </View>
-
-        <ActionButton
-          title={isProcessing ? 'Processing...' : `Done (${capturedImages.length})`}
-          onPress={handleDone}
-          variant={capturedImages.length > 0 ? 'primary' : 'secondary'}
-          size="small"
-          loading={isProcessing}
-          disabled={isProcessing || capturedImages.length === 0}
-        />
       </View>
-
-      {isProcessing && (
-        <View style={styles.processingOverlay}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.processingText}>Creating PDF...</Text>
-        </View>
-      )}
     </View>
   );
 }
@@ -260,25 +172,25 @@ const styles = StyleSheet.create({
     borderBottomWidth: 3,
     borderRightWidth: 3,
   },
-  imageCounter: {
+  instructionContainer: {
     position: 'absolute',
-    top: 100,
+    bottom: 20,
     alignSelf: 'center',
     backgroundColor: COLORS.overlay,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     borderRadius: BORDER_RADIUS.full,
   },
-  counterText: {
+  instructionText: {
     color: COLORS.text,
     fontSize: FONT_SIZES.sm,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   controls: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: SPACING.md,
+    justifyContent: 'center',
+    padding: SPACING.lg,
+    paddingBottom: SPACING.xl,
     backgroundColor: COLORS.surface,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
@@ -293,16 +205,5 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.text,
     borderWidth: 4,
     borderColor: COLORS.primary,
-  },
-  processingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: COLORS.overlay,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  processingText: {
-    marginTop: SPACING.md,
-    color: COLORS.text,
-    fontSize: FONT_SIZES.md,
   },
 });

@@ -29,9 +29,7 @@ export interface SavedSignature {
 export type RootStackParamList = {
   Onboarding: undefined;
   Home: undefined;
-  Camera: {
-    croppedImageUri?: string;
-  } | undefined;
+  Camera: undefined;
   ImageCrop: {
     imageUri: string;
   };

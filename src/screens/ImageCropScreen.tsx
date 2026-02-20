@@ -22,6 +22,8 @@ import Animated, {
 import * as ImageManipulator from 'expo-image-manipulator';
 import DocumentScanner, { ResponseType } from 'react-native-document-scanner-plugin';
 import { ImageCropScreenProps } from '../types';
+import { useDocumentStore } from '../store/useDocumentStore';
+import { imagesToPdf } from '../services/pdfService';
 import ActionButton from '../components/ActionButton';
 import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZES } from '../utils/constants';
 
@@ -38,6 +40,7 @@ type HandleType =
 export default function ImageCropScreen({ navigation, route }: ImageCropScreenProps) {
   const { imageUri } = route.params;
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const { setCurrentDocument } = useDocumentStore();
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
@@ -111,12 +114,8 @@ export default function ImageCropScreen({ navigation, route }: ImageCropScreenPr
       });
 
       if (result.scannedImages && result.scannedImages.length > 0) {
-        // Scanner returns an already-cropped image, navigate back with it
-        navigation.navigate({
-          name: 'Camera',
-          params: { croppedImageUri: result.scannedImages[0] },
-          merge: true,
-        });
+        // Go directly to document preview with the scanned image
+        await goToDocumentPreview(result.scannedImages[0]);
       }
     } catch (error: any) {
       // User cancelled or error occurred
@@ -261,6 +260,23 @@ export default function ImageCropScreen({ navigation, route }: ImageCropScreenPr
     height: cropHeight.value,
   }));
 
+  // Navigate to document preview with a PDF created from the image
+  const goToDocumentPreview = async (croppedImageUri: string) => {
+    try {
+      const pdfUri = await imagesToPdf([croppedImageUri]);
+      const documentName = `Scanned_${new Date().toISOString().slice(0, 10)}.pdf`;
+      setCurrentDocument(pdfUri, documentName);
+      navigation.replace('DocumentPreview', {
+        documentUri: pdfUri,
+        documentName,
+        isFromCamera: true,
+      });
+    } catch (error) {
+      console.error('Error creating PDF:', error);
+      Alert.alert('Error', 'Failed to create PDF. Please try again.');
+    }
+  };
+
   const handleCrop = async () => {
     if (imageLayout.width === 0 || originalImageSize.width === 0) return;
 
@@ -291,26 +307,21 @@ export default function ImageCropScreen({ navigation, route }: ImageCropScreenPr
         { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG }
       );
 
-      // Go back to Camera with the cropped image URI
-      navigation.navigate({
-        name: 'Camera',
-        params: { croppedImageUri: result.uri },
-        merge: true,
-      });
+      // Go to document preview with cropped image
+      await goToDocumentPreview(result.uri);
     } catch (error) {
       console.error('Error cropping image:', error);
+      Alert.alert('Error', 'Failed to crop image. Please try again.');
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleSkip = () => {
-    // Go back to Camera with the original image URI (no crop)
-    navigation.navigate({
-      name: 'Camera',
-      params: { croppedImageUri: imageUri },
-      merge: true,
-    });
+  const handleSkip = async () => {
+    // Go directly to document preview with original image (no crop)
+    setIsProcessing(true);
+    await goToDocumentPreview(imageUri);
+    setIsProcessing(false);
   };
 
   return (

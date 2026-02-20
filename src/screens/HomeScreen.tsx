@@ -6,7 +6,6 @@ import {
   SafeAreaView,
   Alert,
   Pressable,
-  ActivityIndicator,
   Modal,
 } from 'react-native';
 import Animated, {
@@ -24,13 +23,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
+import DocumentScanner, { ResponseType } from 'react-native-document-scanner-plugin';
 import { HomeScreenProps } from '../types';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { usePermissions } from '../hooks/usePermissions';
 import { useIsPremium, useSubscriptionStore } from '../store/useSubscriptionStore';
 import { useDocumentLimit } from '../hooks/useDocumentLimit';
 import { useRewardedAd } from '../hooks/useRewardedAd';
-import { imagesToPdf } from '../services/pdfService';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ANIMATION } from '../utils/constants';
 import { FREE_TIER_LIMITS } from '../config/monetization';
 import BannerAd from '../components/BannerAd';
@@ -102,7 +101,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const isPremium = useIsPremium();
   const { remainingSignings, documentsSignedCount, rewardedAdsWatched, additionalCredits } = useDocumentLimit();
   const { showRewardedAd, isLoaded: isRewardedAdLoaded, isLoading: isAdLoading, error: adError, retryLoad } = useRewardedAd();
-  const [isProcessing, setIsProcessing] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
 
   // Shimmer animation for upgrade badge
@@ -231,7 +229,27 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
   const handleUseCamera = async () => {
     const granted = await requestCameraPermission();
-    if (granted) {
+    if (!granted) return;
+
+    try {
+      // Try automatic document scanner first
+      const result = await DocumentScanner.scanDocument({
+        croppedImageQuality: 100,
+        maxNumDocuments: 1,
+        responseType: ResponseType.ImageFilePath,
+      });
+
+      if (result.scannedImages && result.scannedImages.length > 0) {
+        // Got a scanned image, send to crop screen for final adjustments
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        navigation.navigate('ImageCrop', { imageUri: result.scannedImages[0] });
+      }
+    } catch (error: any) {
+      // User cancelled or scanner failed - fall back to manual camera
+      if (error?.message !== 'User canceled the document scanner') {
+        console.log('Document scanner error, falling back to manual camera:', error);
+      }
+      // Go to manual camera as fallback
       navigation.navigate('Camera');
     }
   };
@@ -251,30 +269,19 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         return;
       }
 
-      setIsProcessing(true);
-      const imageUris = result.assets.map((asset) => asset.uri);
-      const pdfUri = await imagesToPdf(imageUris);
-      const documentName = `Scanned_${new Date().toISOString().slice(0, 10)}.pdf`;
-
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setCurrentDocument(pdfUri, documentName);
-      navigation.navigate('DocumentPreview', {
-        documentUri: pdfUri,
-        documentName,
-        isFromCamera: true,
-      });
+      // Send single image to crop screen
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      navigation.navigate('ImageCrop', { imageUri: result.assets[0].uri });
     } catch (error) {
-      console.error('Error picking images:', error);
-      Alert.alert('Error', 'Failed to process images. Please try again.');
-    } finally {
-      setIsProcessing(false);
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to load image. Please try again.');
     }
   };
 
   const handleScanDocument = () => {
     Alert.alert(
-      'Add Document',
-      'How would you like to add your document?',
+      'Scan Document',
+      'Choose how to capture your document:',
       [
         { text: 'Use Camera', onPress: handleUseCamera },
         { text: 'Choose from Library', onPress: handlePickFromLibrary },
@@ -420,12 +427,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         </View>
       </SafeAreaView>
       <BannerAd />
-      {isProcessing && (
-        <View style={styles.processingOverlay}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.processingText}>Creating PDF...</Text>
-        </View>
-      )}
 
       {/* Limit Reached Modal */}
       <Modal
@@ -611,18 +612,5 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontWeight: '300',
     marginTop: -2,
-  },
-  processingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 100,
-  },
-  processingText: {
-    marginTop: SPACING.md,
-    color: COLORS.text,
-    fontSize: FONT_SIZES.md,
-    fontWeight: '500',
   },
 });

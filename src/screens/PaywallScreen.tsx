@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  Linking,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -37,6 +38,9 @@ import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ANIMATION } from '
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const TERMS_OF_USE_URL = 'https://ramseysmith.github.io/signsnap/eula.html';
+const PRIVACY_POLICY_URL = 'https://ramseysmith.github.io/signsnap/privacy.html';
 
 const BENEFITS = [
   {
@@ -515,6 +519,24 @@ export default function PaywallScreen({ navigation }: PaywallScreenProps) {
         <Text style={styles.legalText}>
           Cancel anytime. Subscription auto-renews until cancelled.
         </Text>
+
+        <View style={styles.legalLinksContainer}>
+          <Pressable
+            onPress={() => Linking.openURL(TERMS_OF_USE_URL)}
+            accessibilityRole="link"
+            accessibilityLabel="Terms of Use"
+          >
+            <Text style={styles.legalLink}>Terms of Use</Text>
+          </Pressable>
+          <Text style={styles.legalSeparator}>•</Text>
+          <Pressable
+            onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
+            accessibilityRole="link"
+            accessibilityLabel="Privacy Policy"
+          >
+            <Text style={styles.legalLink}>Privacy Policy</Text>
+          </Pressable>
+        </View>
       </Animated.View>
     </View>
   );
@@ -775,5 +797,21 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     textAlign: 'center',
     marginTop: 2,
+  },
+  legalLinksContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: SPACING.xs,
+  },
+  legalLink: {
+    fontSize: 10,
+    color: COLORS.primary,
+    fontWeight: '500',
+  },
+  legalSeparator: {
+    fontSize: 10,
+    color: COLORS.textMuted,
+    marginHorizontal: SPACING.xs,
   },
 });
