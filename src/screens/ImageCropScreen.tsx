@@ -18,6 +18,7 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  runOnJS,
 } from 'react-native-reanimated';
 import * as ImageManipulator from 'expo-image-manipulator';
 import DocumentScanner, { ResponseType } from 'react-native-document-scanner-plugin';
@@ -60,6 +61,14 @@ export default function ImageCropScreen({ navigation, route }: ImageCropScreenPr
   // Store initial values when image loads for reset functionality
   const [initialCrop, setInitialCrop] = useState({ x: 0, y: 0, width: 0, height: 0 });
 
+  // Track current crop values in state for reliable access on JS thread
+  const [currentCrop, setCurrentCrop] = useState({ x: 50, y: 50, width: 200, height: 280 });
+
+  // Sync shared values to state (called from UI thread via runOnJS)
+  const syncCropToState = useCallback((x: number, y: number, width: number, height: number) => {
+    setCurrentCrop({ x, y, width, height });
+  }, []);
+
   const handleImageLoad = useCallback((event: { nativeEvent: { source: { width: number; height: number } } }) => {
     const { width: imgWidth, height: imgHeight } = event.nativeEvent.source;
     setOriginalImageSize({ width: imgWidth, height: imgHeight });
@@ -88,6 +97,7 @@ export default function ImageCropScreen({ navigation, route }: ImageCropScreenPr
       height: displayHeight - padding * 2,
     };
     setInitialCrop(initCrop);
+    setCurrentCrop(initCrop);
 
     cropX.value = initCrop.x;
     cropY.value = initCrop.y;
@@ -100,16 +110,18 @@ export default function ImageCropScreen({ navigation, route }: ImageCropScreenPr
     cropY.value = withSpring(initialCrop.y);
     cropWidth.value = withSpring(initialCrop.width);
     cropHeight.value = withSpring(initialCrop.height);
+    setCurrentCrop(initialCrop);
   }, [initialCrop]);
 
   // Auto-detect document edges using the scanner plugin
   const handleAutoDetect = useCallback(async () => {
     setIsDetecting(true);
     try {
-      // Use document scanner to detect edges
+      // Use document scanner to detect edges - single capture, auto-proceed
       const result = await DocumentScanner.scanDocument({
         croppedImageQuality: 100,
         maxNumDocuments: 1,
+        letUserAdjustCrop: false,
         responseType: ResponseType.ImageFilePath,
       });
 
@@ -216,6 +228,10 @@ export default function ImageCropScreen({ navigation, route }: ImageCropScreenPr
             cropWidth.value = Math.max(MIN_CROP_SIZE, Math.min(startWidth.value + translationX, imageLayout.width - startX.value));
             break;
         }
+      })
+      .onEnd(() => {
+        // Sync final values to JS thread state for reliable cropping
+        runOnJS(syncCropToState)(cropX.value, cropY.value, cropWidth.value, cropHeight.value);
       });
   };
 
@@ -287,10 +303,11 @@ export default function ImageCropScreen({ navigation, route }: ImageCropScreenPr
       const scaleY = originalImageSize.height / imageLayout.height;
 
       // Convert crop coordinates to original image coordinates
-      const originX = Math.round(cropX.value * scaleX);
-      const originY = Math.round(cropY.value * scaleY);
-      const width = Math.round(cropWidth.value * scaleX);
-      const height = Math.round(cropHeight.value * scaleY);
+      // Use currentCrop state which is synced from UI thread for reliability
+      const originX = Math.round(currentCrop.x * scaleX);
+      const originY = Math.round(currentCrop.y * scaleY);
+      const width = Math.round(currentCrop.width * scaleX);
+      const height = Math.round(currentCrop.height * scaleY);
 
       const result = await ImageManipulator.manipulateAsync(
         imageUri,
@@ -430,7 +447,7 @@ export default function ImageCropScreen({ navigation, route }: ImageCropScreenPr
 
       <View style={styles.controls}>
         <ActionButton
-          title="Skip"
+          title="Use Original"
           onPress={handleSkip}
           variant="secondary"
           disabled={isProcessing}

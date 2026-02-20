@@ -232,10 +232,11 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     if (!granted) return;
 
     try {
-      // Try automatic document scanner first
+      // Try automatic document scanner first - single capture, auto-proceed
       const result = await DocumentScanner.scanDocument({
         croppedImageQuality: 100,
         maxNumDocuments: 1,
+        letUserAdjustCrop: false,
         responseType: ResponseType.ImageFilePath,
       });
 
