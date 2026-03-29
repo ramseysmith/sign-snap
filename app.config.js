@@ -2,7 +2,7 @@ export default {
   expo: {
     name: 'SignSnap',
     slug: 'sign-snap',
-    version: '1.1.0',
+    version: '1.3.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'dark',
@@ -66,6 +66,7 @@ export default {
         'android.permission.CAMERA',
         'android.permission.READ_EXTERNAL_STORAGE',
         'android.permission.WRITE_EXTERNAL_STORAGE',
+        'android.permission.READ_MEDIA_IMAGES',
         'com.google.android.gms.permission.AD_ID',
       ],
     },
@@ -74,7 +75,12 @@ export default {
     },
     plugins: [
       'expo-camera',
-      'expo-document-picker',
+      [
+        'expo-document-picker',
+        {
+          iCloudContainerEnvironment: 'Production',
+        },
+      ],
       'expo-font',
       [
         'react-native-google-mobile-ads',
@@ -88,6 +94,7 @@ export default {
       eas: {
         projectId: '18a5f839-8f93-45db-8cc6-741ad9317bef',
       },
+      appEnv: process.env.APP_ENV ?? 'development',
     },
   },
 };

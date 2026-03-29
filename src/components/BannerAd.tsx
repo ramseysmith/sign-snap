@@ -8,9 +8,7 @@ import {
 import { ADMOB_CONFIG } from '../config/monetization';
 import { useIsPremium } from '../store/useSubscriptionStore';
 import { COLORS, FONT_SIZES } from '../utils/constants';
-
-// Use test ads in development
-const isDevelopment = __DEV__;
+import { USE_TEST_ADS } from '../utils/buildConfig';
 
 interface BannerAdProps {
   size?: BannerAdSize;
@@ -31,8 +29,7 @@ export default function BannerAd({
     return null;
   }
 
-  // Use test ad unit ID in development for reliable ad loading
-  const adUnitId = isDevelopment ? TestIds.BANNER : ADMOB_CONFIG.bannerAdUnitId;
+  const adUnitId = USE_TEST_ADS ? TestIds.BANNER : ADMOB_CONFIG.bannerAdUnitId;
 
   return (
     <View style={styles.container}>

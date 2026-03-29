@@ -21,6 +21,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as DocumentPicker from 'expo-document-picker';
+import { getInfoAsync } from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import DocumentScanner, { ResponseType } from 'react-native-document-scanner-plugin';
@@ -29,7 +30,7 @@ import { useDocumentStore } from '../store/useDocumentStore';
 import { usePermissions } from '../hooks/usePermissions';
 import { useIsPremium, useSubscriptionStore } from '../store/useSubscriptionStore';
 import { useDocumentLimit } from '../hooks/useDocumentLimit';
-import { useRewardedAd } from '../hooks/useRewardedAd';
+import { useInterstitialAd } from '../hooks/useInterstitialAd';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ANIMATION } from '../utils/constants';
 import { FREE_TIER_LIMITS } from '../config/monetization';
 import BannerAd from '../components/BannerAd';
@@ -100,7 +101,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const { requestCameraPermission, requestMediaLibraryPermission } = usePermissions();
   const isPremium = useIsPremium();
   const { remainingSignings, documentsSignedCount, rewardedAdsWatched, additionalCredits } = useDocumentLimit();
-  const { showRewardedAd, isLoaded: isRewardedAdLoaded, isLoading: isAdLoading, error: adError, retryLoad } = useRewardedAd();
+  const { showAd, isLoaded: isAdLoaded, isLoading: isAdLoading, error: adError, retryLoad } = useInterstitialAd();
+  const { addRewardedAdWatch } = useSubscriptionStore();
   const [showLimitModal, setShowLimitModal] = useState(false);
 
   // Shimmer animation for upgrade badge
@@ -150,7 +152,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   }));
 
   const handleWatchAds = () => {
-    if (!isRewardedAdLoaded) {
+    if (!isAdLoaded) {
       if (adError) {
         Alert.alert(
           'Ads Unavailable',
@@ -178,21 +180,19 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       return;
     }
 
-    showRewardedAd(
-      () => {
-        // Reward earned - modal will refresh with updated progress
-      },
-      () => {
-        // Ad closed - check if user now has credits
-        setTimeout(() => {
-          const state = useSubscriptionStore.getState();
-          if (state.additionalDocumentCredits > 0) {
-            setShowLimitModal(false);
-            Alert.alert('Credit Earned!', 'You can now sign 1 more document.');
-          }
-        }, 100);
-      }
-    );
+    showAd(() => {
+      // Ad closed - grant credit for watching
+      addRewardedAdWatch();
+
+      // Check if user now has credits
+      setTimeout(() => {
+        const state = useSubscriptionStore.getState();
+        if (state.additionalDocumentCredits > 0) {
+          setShowLimitModal(false);
+          Alert.alert('Credit Earned!', 'You can now sign 1 more document.');
+        }
+      }, 100);
+    });
   };
 
   const handleUpgrade = () => {
@@ -294,8 +294,9 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const handleUploadPdf = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: 'application/pdf',
+        type: ['application/pdf', 'com.adobe.pdf'],
         copyToCacheDirectory: true,
+        multiple: false,
       });
 
       if (result.canceled) {
@@ -303,17 +304,48 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       }
 
       const asset = result.assets[0];
-      if (asset) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        setCurrentDocument(asset.uri, asset.name);
-        navigation.navigate('DocumentPreview', {
-          documentUri: asset.uri,
-          documentName: asset.name,
-        });
+      if (!asset) {
+        Alert.alert('Error', 'No file was selected. Please try again.');
+        return;
       }
-    } catch (error) {
+
+      // Decode URI in case it has encoded characters
+      const fileUri = decodeURI(asset.uri);
+
+      // Verify the file was actually copied and is accessible
+      const fileInfo = await getInfoAsync(fileUri);
+      if (!fileInfo.exists) {
+        Alert.alert(
+          'File Not Accessible',
+          'The selected file could not be accessed. Please try selecting the file again, or ensure the file is downloaded and available on your device.'
+        );
+        return;
+      }
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setCurrentDocument(fileUri, asset.name);
+      navigation.navigate('DocumentPreview', {
+        documentUri: fileUri,
+        documentName: asset.name,
+      });
+    } catch (error: any) {
       console.error('Error picking document:', error);
-      Alert.alert('Error', 'Failed to load document. Please try again.');
+      if (error?.message?.includes('Network')) {
+        Alert.alert(
+          'Network Error',
+          'Could not download the file. Please check your internet connection and try again.'
+        );
+      } else if (error?.message?.includes('permission') || error?.message?.includes('denied')) {
+        Alert.alert(
+          'Permission Required',
+          'SignSnap needs permission to access your files. Please grant access in your device settings.'
+        );
+      } else {
+        Alert.alert(
+          'Error',
+          'Failed to load the document. Please make sure the file is a valid PDF and try again.'
+        );
+      }
     }
   };
 
@@ -446,7 +478,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               onUpgrade={handleUpgrade}
               onWatchAds={handleWatchAds}
               isAdLoading={isAdLoading}
-              isAdReady={isRewardedAdLoaded}
+              isAdReady={isAdLoaded}
             />
             <ActionButton
               title="Cancel"

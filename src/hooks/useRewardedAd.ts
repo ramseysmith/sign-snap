@@ -7,9 +7,9 @@ import {
 } from 'react-native-google-mobile-ads';
 import { ADMOB_CONFIG } from '../config/monetization';
 import { useSubscriptionStore, useIsPremium } from '../store/useSubscriptionStore';
+import { USE_TEST_ADS } from '../utils/buildConfig';
 
-// Use test ads in development
-const adUnitId = __DEV__ ? TestIds.REWARDED : ADMOB_CONFIG.rewardedAdUnitId;
+const adUnitId = USE_TEST_ADS ? TestIds.REWARDED : ADMOB_CONFIG.rewardedAdUnitId;
 
 // Safety timeout in case ad gets stuck (45 seconds for rewarded - they're longer)
 const AD_TIMEOUT_MS = 45000;

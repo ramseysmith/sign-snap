@@ -137,7 +137,7 @@ export default function UpgradePrompt({
           style={[styles.watchAdsButton, !isAdReady && styles.watchAdsButtonDisabled]}
           onPress={onWatchAds || (() => {})}
           accessibilityLabel={`Watch ${adsWatched > 0 ? adsUntilNextCredit : adsPerCredit} ads for one more document`}
-          accessibilityHint="Watch rewarded ads to earn additional document signing credits"
+          accessibilityHint="Watch ads to earn additional document signing credits"
         >
           <Text style={styles.watchAdsButtonText}>
             {isAdLoading ? 'Loading Ad...' : 'Watch Ads for More Documents'}

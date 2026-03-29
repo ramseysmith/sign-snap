@@ -75,7 +75,7 @@ export function useDocumentLimit(): UseDocumentLimitReturn {
               } else {
                 // Navigate to a rewarded ad flow or show rewarded ad
                 Alert.alert(
-                  'Watch Rewarded Ads',
+                  'Watch Ads',
                   `Watch ${adsNeededForNextCredit} more ad${adsNeededForNextCredit !== 1 ? 's' : ''} to earn another document signing.`
                 );
               }

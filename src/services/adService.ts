@@ -1,4 +1,5 @@
 import mobileAds, { MaxAdContentRating } from 'react-native-google-mobile-ads';
+import { USE_TEST_ADS } from '../utils/buildConfig';
 
 let isInitialized = false;
 
@@ -23,8 +24,11 @@ export async function initializeAds(): Promise<void> {
       // Enable tag for users under age of consent if needed
       tagForUnderAgeOfConsent: false,
 
-      // Test device IDs for development
-      testDeviceIdentifiers: __DEV__ ? ['EMULATOR'] : [],
+      // Test device IDs — always includes known test devices; also adds EMULATOR in non-production builds
+      testDeviceIdentifiers: [
+        'ACE862E9-099A-4B0B-A553-7D075641C3CF', // personal test device
+        ...(USE_TEST_ADS ? ['EMULATOR'] : []),
+      ],
     });
 
     // Initialize the SDK

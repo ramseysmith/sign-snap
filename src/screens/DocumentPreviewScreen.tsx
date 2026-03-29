@@ -48,9 +48,9 @@ export default function DocumentPreviewScreen({
 
       const dimensions = await getPdfPageDimensions(documentUri, 0);
       setPdfDimensions(dimensions);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error loading PDF:', err);
-      setError('Failed to load PDF. Please try again.');
+      setError(err?.message || 'Failed to load PDF. Please try again.');
     } finally {
       setIsLoading(false);
     }

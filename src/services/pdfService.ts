@@ -35,11 +35,14 @@ export async function getPdfPageCount(pdfUri: string): Promise<number> {
       encoding: EncodingType.Base64,
     });
     const pdfBytes = Uint8Array.from(atob(pdfBase64), (c) => c.charCodeAt(0));
-    const pdfDoc = await PDFDocument.load(pdfBytes);
+    const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
     return pdfDoc.getPageCount();
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error getting PDF page count:', error);
-    throw new Error('Failed to read PDF file');
+    if (error?.message?.includes('encrypt')) {
+      throw new Error('This PDF is encrypted or password-protected and cannot be opened.');
+    }
+    throw new Error('Failed to read PDF file. The file may be corrupted or not a valid PDF.');
   }
 }
 
@@ -52,13 +55,13 @@ export async function getPdfPageDimensions(
       encoding: EncodingType.Base64,
     });
     const pdfBytes = Uint8Array.from(atob(pdfBase64), (c) => c.charCodeAt(0));
-    const pdfDoc = await PDFDocument.load(pdfBytes);
+    const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
     const page = pdfDoc.getPage(pageIndex);
     const { width, height } = page.getSize();
     return { width, height };
   } catch (error) {
     console.error('Error getting PDF dimensions:', error);
-    throw new Error('Failed to read PDF dimensions');
+    throw new Error('Failed to read PDF dimensions. The file may be corrupted or not a valid PDF.');
   }
 }
 
@@ -74,7 +77,7 @@ export async function embedSignatureOnPdf(
       encoding: EncodingType.Base64,
     });
     const pdfBytes = Uint8Array.from(atob(pdfBase64), (c) => c.charCodeAt(0));
-    const pdfDoc = await PDFDocument.load(pdfBytes);
+    const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
 
     // Get the target page
     const page = pdfDoc.getPage(placement.pageIndex);

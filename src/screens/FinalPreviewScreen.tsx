@@ -26,7 +26,6 @@ import ActionButton from '../components/ActionButton';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ANIMATION } from '../utils/constants';
 import { useInterstitialAd } from '../hooks/useInterstitialAd';
 import { useDocumentLimit } from '../hooks/useDocumentLimit';
-import { useRewardedAd } from '../hooks/useRewardedAd';
 import { FREE_TIER_LIMITS } from '../config/monetization';
 
 export default function FinalPreviewScreen({

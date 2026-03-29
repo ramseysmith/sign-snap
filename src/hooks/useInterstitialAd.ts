@@ -6,9 +6,9 @@ import {
 } from 'react-native-google-mobile-ads';
 import { ADMOB_CONFIG } from '../config/monetization';
 import { useIsPremium } from '../store/useSubscriptionStore';
+import { USE_TEST_ADS } from '../utils/buildConfig';
 
-// Use test ads in development
-const adUnitId = __DEV__ ? TestIds.INTERSTITIAL : ADMOB_CONFIG.interstitialAdUnitId;
+const adUnitId = USE_TEST_ADS ? TestIds.INTERSTITIAL : ADMOB_CONFIG.interstitialAdUnitId;
 
 // Safety timeout in case ad gets stuck (30 seconds)
 const AD_TIMEOUT_MS = 30000;
@@ -16,16 +16,24 @@ const AD_TIMEOUT_MS = 30000;
 interface UseInterstitialAdReturn {
   isLoaded: boolean;
   isShowing: boolean;
+  isLoading: boolean;
+  error: string | null;
   showAd: (onComplete?: () => void) => void;
+  /** Retry loading the ad */
+  retryLoad: () => void;
 }
 
 export function useInterstitialAd(): UseInterstitialAdReturn {
   const isPremium = useIsPremium();
   const [isLoaded, setIsLoaded] = useState(false);
   const [isShowing, setIsShowing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const adRef = useRef<InterstitialAd | null>(null);
   const onCompleteRef = useRef<(() => void) | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryCountRef = useRef(0);
+  const maxRetries = 3;
 
   // Helper to safely call and clear the completion callback
   const callComplete = useCallback(() => {
@@ -61,6 +69,9 @@ export function useInterstitialAd(): UseInterstitialAdReturn {
       AdEventType.LOADED,
       () => {
         setIsLoaded(true);
+        setIsLoading(false);
+        setError(null);
+        retryCountRef.current = 0;
       }
     );
 
@@ -69,6 +80,7 @@ export function useInterstitialAd(): UseInterstitialAdReturn {
       () => {
         setIsShowing(false);
         setIsLoaded(false);
+        setIsLoading(true);
 
         // Call the completion callback
         callComplete();
@@ -80,22 +92,41 @@ export function useInterstitialAd(): UseInterstitialAdReturn {
 
     const unsubscribeError = interstitial.addAdEventListener(
       AdEventType.ERROR,
-      (error) => {
-        console.log('Interstitial ad error:', error);
+      (adError: any) => {
+        console.log('Interstitial ad error:', adError);
         setIsShowing(false);
         setIsLoaded(false);
+        setIsLoading(false);
 
         // Call completion callback even on error
         callComplete();
 
-        // Try to reload the ad
-        setTimeout(() => {
-          interstitial.load();
-        }, 1000);
+        // Handle no-fill errors with retry logic
+        const isNoFill = adError?.message?.includes('no-fill') || adError?.code === 'no-fill';
+
+        if (isNoFill && retryCountRef.current < maxRetries) {
+          retryCountRef.current += 1;
+          const retryDelay = Math.min(2000 * retryCountRef.current, 10000);
+          console.log(`Retrying interstitial ad load in ${retryDelay}ms (attempt ${retryCountRef.current}/${maxRetries})`);
+          setIsLoading(true);
+          setTimeout(() => {
+            interstitial.load();
+          }, retryDelay);
+        } else if (isNoFill) {
+          setError('No ads available right now. Please try again later.');
+        } else {
+          setError('Failed to load ad. Please try again.');
+          // Try to reload after a delay for non-no-fill errors
+          setTimeout(() => {
+            setIsLoading(true);
+            interstitial.load();
+          }, 3000);
+        }
       }
     );
 
     // Load the initial ad
+    setIsLoading(true);
     interstitial.load();
 
     return () => {
@@ -122,6 +153,7 @@ export function useInterstitialAd(): UseInterstitialAdReturn {
 
       if (isLoaded && adRef.current) {
         setIsShowing(true);
+        setError(null);
 
         // Set a safety timeout in case the ad gets stuck
         timeoutRef.current = setTimeout(() => {
@@ -132,6 +164,7 @@ export function useInterstitialAd(): UseInterstitialAdReturn {
 
           // Try to reload ad for next time
           if (adRef.current) {
+            setIsLoading(true);
             adRef.current.load();
           }
         }, AD_TIMEOUT_MS);
@@ -145,9 +178,21 @@ export function useInterstitialAd(): UseInterstitialAdReturn {
     [isPremium, isLoaded, callComplete]
   );
 
+  const retryLoad = useCallback(() => {
+    if (adRef.current && !isLoading && !isLoaded) {
+      setError(null);
+      setIsLoading(true);
+      retryCountRef.current = 0;
+      adRef.current.load();
+    }
+  }, [isLoading, isLoaded]);
+
   return {
     isLoaded,
     isShowing,
+    isLoading,
+    error,
     showAd,
+    retryLoad,
   };
 }

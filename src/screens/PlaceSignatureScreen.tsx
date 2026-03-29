@@ -21,7 +21,7 @@ import PageSelector from '../components/PageSelector';
 import ActionButton from '../components/ActionButton';
 import UpgradePrompt from '../components/UpgradePrompt';
 import { useDocumentLimit } from '../hooks/useDocumentLimit';
-import { useRewardedAd } from '../hooks/useRewardedAd';
+import { useInterstitialAd } from '../hooks/useInterstitialAd';
 import { useSubscriptionStore } from '../store/useSubscriptionStore';
 import { FREE_TIER_LIMITS } from '../config/monetization';
 import { COLORS, SPACING, FONT_SIZES, SIGNATURE_DEFAULT_SIZE, BORDER_RADIUS } from '../utils/constants';
@@ -82,7 +82,8 @@ export default function PlaceSignatureScreen({
     rewardedAdsWatched,
     incrementDocumentsSigned,
   } = useDocumentLimit();
-  const { showRewardedAd, isLoaded: isRewardedAdLoaded } = useRewardedAd();
+  const { showAd, isLoaded: isAdLoaded } = useInterstitialAd();
+  const { addRewardedAdWatch } = useSubscriptionStore();
 
   // Ensure portrait orientation on this screen
   useEffect(() => {
@@ -250,7 +251,7 @@ export default function PlaceSignatureScreen({
   };
 
   const handleWatchAds = () => {
-    if (!isRewardedAdLoaded) {
+    if (!isAdLoaded) {
       Alert.alert(
         'Ad Not Ready',
         'The ad is still loading. Please try again in a moment.',
@@ -260,27 +261,25 @@ export default function PlaceSignatureScreen({
     }
 
     // Don't hide the modal - it will stay behind the ad and show updated progress when ad closes
-    showRewardedAd(
-      () => {
-        // Reward earned - modal will refresh with updated progress
-      },
-      () => {
-        // Ad closed - check fresh state from store to see if user can now sign
-        // Use setTimeout to allow zustand state to propagate
-        setTimeout(() => {
-          const state = useSubscriptionStore.getState();
-          const baseRemaining = Math.max(0, FREE_TIER_LIMITS.maxDocumentSignings - state.documentsSignedCount);
-          const totalRemaining = baseRemaining + state.additionalDocumentCredits;
-          const canSign = state.isPremium || totalRemaining > 0;
+    showAd(() => {
+      // Ad closed - grant credit for watching
+      addRewardedAdWatch();
 
-          if (canSign) {
-            // User earned enough credits to sign - close modal and proceed
-            setShowLimitModal(false);
-          }
-          // If still at limit, modal stays visible with updated progress
-        }, 100);
-      }
-    );
+      // Check fresh state from store to see if user can now sign
+      // Use setTimeout to allow zustand state to propagate
+      setTimeout(() => {
+        const state = useSubscriptionStore.getState();
+        const baseRemaining = Math.max(0, FREE_TIER_LIMITS.maxDocumentSignings - state.documentsSignedCount);
+        const totalRemaining = baseRemaining + state.additionalDocumentCredits;
+        const canSign = state.isPremium || totalRemaining > 0;
+
+        if (canSign) {
+          // User earned enough credits to sign - close modal and proceed
+          setShowLimitModal(false);
+        }
+        // If still at limit, modal stays visible with updated progress
+      }, 100);
+    });
   };
 
   const handleUpgrade = () => {
