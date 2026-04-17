@@ -2,7 +2,7 @@ export default {
   expo: {
     name: 'SignSnap',
     slug: 'sign-snap',
-    version: '1.3.0',
+    version: '1.4.1',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'dark',
@@ -14,6 +14,7 @@ export default {
     },
     ios: {
       bundleIdentifier: 'com.signsnap.app',
+      buildNumber: '2',
       supportsTablet: true,
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,

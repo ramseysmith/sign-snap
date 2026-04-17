@@ -18,6 +18,7 @@ import {
 } from '../services/purchaseService';
 import ActionButton from '../components/ActionButton';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../utils/constants';
+import { resetReviewPromptState } from '../hooks/useReviewPrompt';
 
 export default function CustomerCenterScreen({
   navigation,
@@ -218,6 +219,24 @@ export default function CustomerCenterScreen({
           <Text style={styles.customerId}>
             {customerInfo.originalAppUserId}
           </Text>
+        </View>
+      )}
+
+      {__DEV__ && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Developer Tools</Text>
+          <View style={styles.actionsCard}>
+            <TouchableOpacity
+              style={[styles.actionItem, styles.actionItemLast]}
+              onPress={async () => {
+                await resetReviewPromptState();
+                Alert.alert('Dev', 'Review prompt state reset. Next export will re-evaluate.');
+              }}
+            >
+              <Text style={styles.actionText}>Reset Review Prompt State</Text>
+              <Text style={styles.actionArrow}>Reset</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
     </ScrollView>

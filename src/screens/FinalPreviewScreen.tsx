@@ -27,6 +27,7 @@ import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ANIMATION } from '
 import { useInterstitialAd } from '../hooks/useInterstitialAd';
 import { useDocumentLimit } from '../hooks/useDocumentLimit';
 import { FREE_TIER_LIMITS } from '../config/monetization';
+import { useReviewPrompt } from '../hooks/useReviewPrompt';
 
 export default function FinalPreviewScreen({
   navigation,
@@ -40,6 +41,7 @@ export default function FinalPreviewScreen({
   const [hasAutoSaved, setHasAutoSaved] = useState(false);
   const { showAd } = useInterstitialAd();
   const { isPremium } = useDocumentLimit();
+  const { maybeRequestReview } = useReviewPrompt();
   const checkmarkScale = useSharedValue(0);
 
   // Animate checkmark on mount
@@ -62,6 +64,10 @@ export default function FinalPreviewScreen({
         addSavedDocument(savedDoc);
         setIsSaved(true);
         setHasAutoSaved(true);
+        // Fire review prompt 2 s after the success banner appears
+        setTimeout(() => {
+          maybeRequestReview({ exportSucceeded: true });
+        }, 2000);
       } catch (error) {
         console.error('Error auto-saving document:', error);
         // Silent fail - user can still manually save
