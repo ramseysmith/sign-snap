@@ -2,7 +2,7 @@ export default {
   expo: {
     name: 'SignSnap',
     slug: 'sign-snap',
-    version: '1.4.1',
+    version: '1.5.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'dark',
