@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Image,
@@ -127,8 +127,37 @@ export default function ImageCropScreen({ navigation, route }: ImageCropScreenPr
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const { setCurrentDocument } = useDocumentStore();
 
+  // Normalized, upright copy of the source image. Picking a photo from the
+  // library can yield raw pixel data with an EXIF rotation flag — the <Image>
+  // component displays it upright (EXIF-corrected) while ImageManipulator crops
+  // in raw pixel space, so the two coordinate systems disagree and the crop
+  // lands in the wrong place / scale. Baking the orientation in up front makes
+  // the displayed pixels and the cropped pixels share one coordinate system.
+  const [displayUri, setDisplayUri] = useState<string | null>(null);
+
   const [showCropUI, setShowCropUI] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        // Empty op list still re-encodes with EXIF orientation applied.
+        const normalized = await ImageManipulator.manipulateAsync(
+          imageUri,
+          [],
+          { format: ImageManipulator.SaveFormat.JPEG },
+        );
+        if (!cancelled) setDisplayUri(normalized.uri);
+      } catch (error) {
+        console.error('Error normalizing image orientation:', error);
+        if (!cancelled) setDisplayUri(imageUri); // fall back to original
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [imageUri]);
 
   // imageLayout stored in state (for JSX sizing/positioning) and as shared
   // values (so gesture worklets always get the correct image bounds).
@@ -350,8 +379,9 @@ export default function ImageCropScreen({ navigation, route }: ImageCropScreenPr
   // ─── Button handlers ────────────────────────────────────────────────────────
 
   const handleSign = async () => {
+    if (!displayUri) return;
     setIsProcessing(true);
-    await goToDocumentPreview(imageUri);
+    await goToDocumentPreview(displayUri);
     setIsProcessing(false);
   };
 
@@ -365,7 +395,7 @@ export default function ImageCropScreen({ navigation, route }: ImageCropScreenPr
     const srcW = originalImageSize.width;
     const srcH = originalImageSize.height;
 
-    if (displayW === 0 || srcW === 0) return;
+    if (displayW === 0 || srcW === 0 || !displayUri) return;
 
     setIsProcessing(true);
     try {
@@ -392,7 +422,7 @@ export default function ImageCropScreen({ navigation, route }: ImageCropScreenPr
       height  = Math.max(1, Math.min(height, srcH - originY));
 
       const result = await ImageManipulator.manipulateAsync(
-        imageUri,
+        displayUri,
         [{ crop: { originX, originY, width, height } }],
         { compress: 0.92, format: ImageManipulator.SaveFormat.JPEG },
       );
@@ -425,18 +455,22 @@ export default function ImageCropScreen({ navigation, route }: ImageCropScreenPr
 
       {/* Image + crop overlay */}
       <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: imageUri }}
-          style={[
-            styles.image,
-            {
-              width: imageLayout.width || maxImgW,
-              height: imageLayout.height || maxImgH,
-            },
-          ]}
-          onLoad={handleImageLoad}
-          resizeMode="stretch" // exact dimensions — no letterboxing inside the box
-        />
+        {displayUri ? (
+          <Image
+            source={{ uri: displayUri }}
+            style={[
+              styles.image,
+              {
+                width: imageLayout.width || maxImgW,
+                height: imageLayout.height || maxImgH,
+              },
+            ]}
+            onLoad={handleImageLoad}
+            resizeMode="stretch" // exact dimensions — no letterboxing inside the box
+          />
+        ) : (
+          <ActivityIndicator size="large" color={COLORS.primary} style={styles.imageLoader} />
+        )}
 
         {/* Crop overlay — only rendered when crop UI is active */}
         {showCropUI && imageLayout.width > 0 && (
@@ -622,6 +656,9 @@ const styles = StyleSheet.create({
   },
   image: {
     borderRadius: BORDER_RADIUS.sm,
+  },
+  imageLoader: {
+    flex: 1,
   },
 
   // ── Crop overlay ──

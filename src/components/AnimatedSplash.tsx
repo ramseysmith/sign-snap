@@ -37,20 +37,17 @@ export default function AnimatedSplash({ onAnimationComplete }: AnimatedSplashPr
 
   useEffect(() => {
     const sequence = Animated.sequence([
-      // Initial delay
-      Animated.delay(200),
-
       // Glow fades in and scales up
       Animated.parallel([
         Animated.timing(glowOpacity, {
           toValue: 1,
-          duration: 600,
+          duration: 280,
           useNativeDriver: true,
           easing: Easing.out(Easing.ease),
         }),
         Animated.timing(glowScale, {
           toValue: 1,
-          duration: 800,
+          duration: 360,
           useNativeDriver: true,
           easing: Easing.out(Easing.ease),
         }),
@@ -60,25 +57,22 @@ export default function AnimatedSplash({ onAnimationComplete }: AnimatedSplashPr
       Animated.parallel([
         Animated.timing(penOpacity, {
           toValue: 1,
-          duration: 400,
+          duration: 220,
           useNativeDriver: true,
           easing: Easing.out(Easing.ease),
         }),
         Animated.spring(penTranslateY, {
           toValue: 0,
-          tension: 50,
-          friction: 8,
+          tension: 90,
+          friction: 9,
           useNativeDriver: true,
         }),
       ]),
 
-      // Short pause
-      Animated.delay(200),
-
       // Signature stroke fades in
       Animated.timing(strokeOpacity, {
         toValue: 1,
-        duration: 500,
+        duration: 250,
         useNativeDriver: true,
         easing: Easing.out(Easing.ease),
       }),
@@ -87,14 +81,14 @@ export default function AnimatedSplash({ onAnimationComplete }: AnimatedSplashPr
       Animated.parallel([
         Animated.timing(titleOpacity, {
           toValue: 1,
-          duration: 400,
+          duration: 220,
           useNativeDriver: true,
           easing: Easing.out(Easing.ease),
         }),
         Animated.spring(titleTranslateY, {
           toValue: 0,
-          tension: 50,
-          friction: 8,
+          tension: 90,
+          friction: 9,
           useNativeDriver: true,
         }),
       ]),
@@ -102,18 +96,18 @@ export default function AnimatedSplash({ onAnimationComplete }: AnimatedSplashPr
       // Tagline fades in
       Animated.timing(taglineOpacity, {
         toValue: 1,
-        duration: 400,
+        duration: 220,
         useNativeDriver: true,
         easing: Easing.out(Easing.ease),
       }),
 
-      // Hold for a moment
-      Animated.delay(600),
+      // Brief hold
+      Animated.delay(250),
 
       // Fade out everything
       Animated.timing(containerOpacity, {
         toValue: 0,
-        duration: 400,
+        duration: 280,
         useNativeDriver: true,
         easing: Easing.in(Easing.ease),
       }),

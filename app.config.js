@@ -8,8 +8,6 @@ export default {
     userInterfaceStyle: 'dark',
     newArchEnabled: true,
     splash: {
-      image: './assets/splash-icon.png',
-      resizeMode: 'contain',
       backgroundColor: '#0F0F1A',
     },
     ios: {

@@ -25,6 +25,9 @@ export default function DocumentThumbnail({
       style={styles.container}
       onPress={onPress}
       activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`${formatFileName(document.name)}, signed ${formatDate(document.createdAt)}`}
+      accessibilityHint="Opens options to view or share this document"
     >
       <View style={styles.iconContainer}>
         <Text style={styles.icon}>📄</Text>
@@ -41,6 +44,9 @@ export default function DocumentThumbnail({
         style={styles.deleteButton}
         onPress={onDelete}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        accessibilityRole="button"
+        accessibilityLabel={`Delete ${formatFileName(document.name)}`}
+        accessibilityHint="Deletes this document"
       >
         <Text style={styles.deleteIcon}>✕</Text>
       </TouchableOpacity>

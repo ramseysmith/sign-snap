@@ -86,7 +86,7 @@ export default function FinalPreviewScreen({
     // Show interstitial ad before sharing (for free users)
     showAd(async () => {
       setIsSharing(true);
-      await shareDocument(signedPdfUri);
+      await shareDocument(signedPdfUri, documentName);
       setIsSharing(false);
     });
   };

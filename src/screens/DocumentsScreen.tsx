@@ -67,7 +67,7 @@ export default function DocumentsScreen({ navigation }: DocumentsScreenProps) {
         onPress: () => {
           // Show interstitial ad before sharing (for free users)
           showAd(() => {
-            shareDocument(document.uri);
+            shareDocument(document.uri, document.name);
           });
         },
       },

@@ -70,11 +70,16 @@ export async function listDocuments(): Promise<SavedDocument[]> {
         const id = parts[0];
         const name = parts.slice(1).join('_');
 
+        // Recover the real save time from the id (`${Date.now()}-${random}`)
+        // rather than stamping every document with "now" on each load.
+        const timestamp = parseInt(id.split('-')[0], 10);
+        const createdAt = Number.isFinite(timestamp) && timestamp > 0 ? timestamp : Date.now();
+
         documents.push({
           id,
           name: name || file,
           uri: fileUri,
-          createdAt: Date.now(),
+          createdAt,
         });
       }
     }
