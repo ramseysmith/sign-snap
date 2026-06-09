@@ -27,7 +27,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { OnboardingScreenProps } from '../types';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ANIMATION } from '../utils/constants';
+import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, ANIMATION } from '../utils/constants';
+import { SlideIllustration, IllustrationKind } from '../components/OnboardingIllustrations';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const ONBOARDING_KEY = 'hasCompletedOnboarding';
@@ -37,7 +38,8 @@ const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 
 interface OnboardingSlide {
   id: string;
-  emoji: string;
+  kind: IllustrationKind;
+  badge?: string;
   title: string;
   subtitle: string;
   description: string;
@@ -48,28 +50,40 @@ interface OnboardingSlide {
 const SLIDES: OnboardingSlide[] = [
   {
     id: '1',
-    emoji: '⚡',
-    title: 'Save Time',
-    subtitle: 'Sign in Seconds',
-    description: 'No more printing, signing, and scanning. Sign any document digitally in under 30 seconds.',
+    kind: 'welcome',
+    title: 'Welcome to SignSnap',
+    subtitle: 'Sign anything, in seconds',
+    description: 'Turn any document into a signed PDF right from your phone — no printer, no scanner, no hassle.',
     gradientColors: ['#6C63FF', '#8B7FFF'],
     accentColor: '#6C63FF',
   },
   {
     id: '2',
-    emoji: '✍️',
-    title: 'Easy Signatures',
-    subtitle: 'Draw, Type, or Upload',
-    description: 'Create your perfect signature by drawing it, typing your name, or uploading an existing one.',
+    kind: 'scan',
+    badge: 'STEP 1',
+    title: 'Add Your Document',
+    subtitle: 'Scan, snap, or import',
+    description: 'Scan a page with your camera, choose a photo from your library, or import an existing PDF.',
     gradientColors: ['#00D9FF', '#00B8D9'],
     accentColor: '#00D9FF',
   },
   {
     id: '3',
-    emoji: '📱',
-    title: 'Power in Your Pocket',
-    subtitle: 'Sign Anywhere, Anytime',
-    description: 'Your signature studio fits in your pocket. Sign contracts, forms, and documents wherever you are.',
+    kind: 'sign',
+    badge: 'STEP 2',
+    title: 'Sign Your Way',
+    subtitle: 'Draw, type, or upload',
+    description: 'Create your signature once and reuse it anytime. Draw it, type your name, or upload an image.',
+    gradientColors: ['#6C63FF', '#8B7FFF'],
+    accentColor: '#6C63FF',
+  },
+  {
+    id: '4',
+    kind: 'share',
+    badge: 'STEP 3',
+    title: 'Place & Share',
+    subtitle: 'Drop it, then send',
+    description: 'Drag your signature exactly where it belongs, then save it or share your signed PDF instantly.',
     gradientColors: ['#8B7FFF', '#A599FF'],
     accentColor: '#8B7FFF',
   },
@@ -318,21 +332,28 @@ function Slide({ slide, index, scrollX }: SlideProps) {
   return (
     <View style={styles.slide}>
       <Animated.View style={[styles.slideContent, animatedStyle]}>
-        {/* Icon container with single ring */}
+        {/* Illustration with single ring */}
         <View style={styles.iconWrapper}>
-          <AnimatedRing delay={0} size={160} color={slide.accentColor} />
+          <AnimatedRing delay={0} size={210} color={slide.accentColor} />
 
           <Animated.View style={floatStyle}>
-            <LinearGradient
-              colors={slide.gradientColors}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.iconContainer}
-            >
-              <Text style={styles.emoji}>{slide.emoji}</Text>
-            </LinearGradient>
+            <SlideIllustration
+              kind={slide.kind}
+              accent={slide.accentColor}
+              gradient={slide.gradientColors}
+              uid={slide.id}
+              size={200}
+            />
           </Animated.View>
         </View>
+
+        {slide.badge && (
+          <View style={[styles.stepBadge, { borderColor: slide.accentColor }]}>
+            <Text style={[styles.stepBadgeText, { color: slide.accentColor }]}>
+              {slide.badge}
+            </Text>
+          </View>
+        )}
 
         <Text style={styles.title}>{slide.title}</Text>
         <Text style={[styles.subtitle, { color: slide.accentColor }]}>{slide.subtitle}</Text>
@@ -655,22 +676,24 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   iconWrapper: {
-    width: 180,
-    height: 180,
+    width: 210,
+    height: 210,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING.lg,
   },
-  iconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...SHADOWS.lg,
+  stepBadge: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 5,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1.5,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    marginBottom: SPACING.md,
   },
-  emoji: {
-    fontSize: 56,
+  stepBadgeText: {
+    fontSize: FONT_SIZES.xs,
+    fontWeight: '800',
+    letterSpacing: 2,
   },
   title: {
     fontSize: 36,
