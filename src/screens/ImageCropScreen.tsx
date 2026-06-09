@@ -131,33 +131,12 @@ export default function ImageCropScreen({ navigation, route }: ImageCropScreenPr
   // library can yield raw pixel data with an EXIF rotation flag — the <Image>
   // component displays it upright (EXIF-corrected) while ImageManipulator crops
   // in raw pixel space, so the two coordinate systems disagree and the crop
-  // lands in the wrong place / scale. Baking the orientation in up front makes
-  // the displayed pixels and the cropped pixels share one coordinate system.
+  // lands in the wrong place / scale. We bake the orientation in up front so the
+  // displayed pixels and the cropped pixels share one coordinate system.
   const [displayUri, setDisplayUri] = useState<string | null>(null);
 
   const [showCropUI, setShowCropUI] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        // Empty op list still re-encodes with EXIF orientation applied.
-        const normalized = await ImageManipulator.manipulateAsync(
-          imageUri,
-          [],
-          { format: ImageManipulator.SaveFormat.JPEG },
-        );
-        if (!cancelled) setDisplayUri(normalized.uri);
-      } catch (error) {
-        console.error('Error normalizing image orientation:', error);
-        if (!cancelled) setDisplayUri(imageUri); // fall back to original
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [imageUri]);
 
   // imageLayout stored in state (for JSX sizing/positioning) and as shared
   // values (so gesture worklets always get the correct image bounds).
@@ -184,18 +163,20 @@ export default function ImageCropScreen({ navigation, route }: ImageCropScreenPr
   // Initial crop values for reset (set when image loads)
   const [initialCrop, setInitialCrop] = useState({ x: 0, y: 0, w: 0, h: 0 });
 
-  // ─── Image load ─────────────────────────────────────────────────────────────
+  // ─── Layout ───────────────────────────────────────────────────────────────
 
   // Available space for the image on screen (approximate — footer ≈ 180px)
   const maxImgH = screenHeight - 180;
   const maxImgW = screenWidth - 32;
 
-  const handleImageLoad = useCallback(
-    (event: { nativeEvent: { source: { width: number; height: number } } }) => {
-      const { width: srcW, height: srcH } = event.nativeEvent.source;
+  // Fit the (upright) image into the available box, preserving aspect ratio,
+  // and reset the crop box to cover it edge-to-edge. `srcW`/`srcH` are the true
+  // pixel dimensions of the displayed file.
+  const configureForSize = useCallback(
+    (srcW: number, srcH: number) => {
+      if (!srcW || !srcH) return;
       setOriginalImageSize({ width: srcW, height: srcH });
 
-      // Scale down to fit the available box while preserving aspect ratio
       const ratio = srcW / srcH;
       let dW = maxImgW;
       let dH = dW / ratio;
@@ -222,6 +203,51 @@ export default function ImageCropScreen({ navigation, route }: ImageCropScreenPr
       cropH.value = init.h;
     },
     [screenWidth, maxImgW, maxImgH],
+  );
+
+  // ─── Orientation normalization ──────────────────────────────────────────────
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        // Two opposite flips are a no-op visually but force ImageManipulator to
+        // decode → apply EXIF orientation → re-encode a fresh upright bitmap
+        // (an empty op list is often optimized to a plain file copy that keeps
+        // the EXIF flag). The returned width/height are the authoritative pixel
+        // dimensions of the upright file — we use those rather than <Image>'s
+        // onLoad source, which iOS reports inconsistently for rotated photos.
+        const baked = await ImageManipulator.manipulateAsync(
+          imageUri,
+          [
+            { flip: ImageManipulator.FlipType.Vertical },
+            { flip: ImageManipulator.FlipType.Vertical },
+          ],
+          { compress: 1, format: ImageManipulator.SaveFormat.JPEG },
+        );
+        if (cancelled) return;
+        setDisplayUri(baked.uri);
+        configureForSize(baked.width, baked.height);
+      } catch (error) {
+        console.error('Error normalizing image orientation:', error);
+        // Fall back to the original; handleImageLoad will configure from it.
+        if (!cancelled) setDisplayUri(imageUri);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [imageUri, configureForSize]);
+
+  // Fallback only: if baking failed we never set originalImageSize, so derive
+  // it from the rendered image. (When baking succeeds this is a no-op.)
+  const handleImageLoad = useCallback(
+    (event: { nativeEvent: { source: { width: number; height: number } } }) => {
+      if (originalImageSize.width > 0) return;
+      const { width: srcW, height: srcH } = event.nativeEvent.source;
+      configureForSize(srcW, srcH);
+    },
+    [originalImageSize.width, configureForSize],
   );
 
   // ─── Reset ──────────────────────────────────────────────────────────────────

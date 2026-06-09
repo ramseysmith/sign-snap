@@ -279,18 +279,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     }
   };
 
-  const handleScanDocument = () => {
-    Alert.alert(
-      'Scan Document',
-      'Choose how to capture your document:',
-      [
-        { text: 'Use Camera', onPress: handleUseCamera },
-        { text: 'Choose from Library', onPress: handlePickFromLibrary },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
-  };
-
   const handleUploadPdf = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -428,16 +416,24 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             icon="📷"
             title="Scan Document"
             description="Use your camera to scan a physical document"
-            onPress={handleScanDocument}
+            onPress={handleUseCamera}
             delay={200}
             accessibilityHint="Opens camera to scan a document"
+          />
+          <ActionCard
+            icon="🖼️"
+            title="Photo Library"
+            description="Pick an existing image from your photos"
+            onPress={handlePickFromLibrary}
+            delay={275}
+            accessibilityHint="Opens your photo library to select an image"
           />
           <ActionCard
             icon="📄"
             title="Upload PDF"
             description="Choose a PDF file from your device"
             onPress={handleUploadPdf}
-            delay={300}
+            delay={350}
             accessibilityHint="Opens file picker to select a PDF"
           />
           <ActionCard
@@ -445,7 +441,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             title="My Documents"
             description="View and manage your signed documents"
             onPress={handleViewDocuments}
-            delay={400}
+            delay={425}
             accessibilityHint="Opens your saved documents"
           />
           <ActionCard
@@ -453,7 +449,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             title="My Signatures"
             description="Manage your saved signatures"
             onPress={handleManageSignatures}
-            delay={450}
+            delay={475}
             accessibilityHint="Opens signature management"
           />
           </View>
@@ -603,7 +599,7 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     borderWidth: 1,
     borderColor: COLORS.border,
-    height: 90,
+    height: 76,
     ...SHADOWS.sm,
   },
   iconContainer: {
