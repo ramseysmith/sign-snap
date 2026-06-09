@@ -15,6 +15,11 @@ const PURPLE = '#6C63FF';
 const CYAN = '#00D9FF';
 const BG = '#0F0F1A';
 
+// Measured lengths of the signature paths (see design notes). A touch above the
+// true length so the stroke reveals fully when the dash offset reaches zero.
+const STROKE_LEN = 204;
+const TAIL_LEN = 20;
+
 const AnimatedG = Animated.createAnimatedComponent(G);
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -26,88 +31,125 @@ interface AnimatedSplashProps {
 export default function AnimatedSplash({ onAnimationComplete }: AnimatedSplashProps) {
   // Animation values
   const containerOpacity = useRef(new Animated.Value(1)).current;
-  const penOpacity = useRef(new Animated.Value(0)).current;
-  const penTranslateY = useRef(new Animated.Value(-20)).current;
-  const strokeOpacity = useRef(new Animated.Value(0)).current;
-  const titleOpacity = useRef(new Animated.Value(0)).current;
-  const titleTranslateY = useRef(new Animated.Value(15)).current;
-  const taglineOpacity = useRef(new Animated.Value(0)).current;
-  const glowScale = useRef(new Animated.Value(0.8)).current;
+
   const glowOpacity = useRef(new Animated.Value(0)).current;
+  const glowScale = useRef(new Animated.Value(0.85)).current;
+
+  const penOpacity = useRef(new Animated.Value(0)).current;
+  const penScale = useRef(new Animated.Value(0.9)).current;
+
+  // Signature "draw-on": animate the dash offset from full length → 0 so the
+  // ink appears to be written by hand. (JS-driven: strokeDashoffset isn't
+  // supported by the native driver.)
+  const strokeDraw = useRef(new Animated.Value(STROKE_LEN)).current;
+  const tailDraw = useRef(new Animated.Value(TAIL_LEN)).current;
+  const dotOpacity = useRef(new Animated.Value(0)).current;
+
+  // Text reveals with a soft fade + slight scale-up — a gentle "materialize"
+  // rather than a translate-based fly-in.
+  const titleOpacity = useRef(new Animated.Value(0)).current;
+  const titleScale = useRef(new Animated.Value(0.94)).current;
+  const taglineOpacity = useRef(new Animated.Value(0)).current;
+  const taglineScale = useRef(new Animated.Value(0.9)).current;
 
   useEffect(() => {
     const sequence = Animated.sequence([
-      // Glow fades in and scales up
+      Animated.delay(80),
+
+      // Ambient glow + pen quietly fade/scale in together
       Animated.parallel([
         Animated.timing(glowOpacity, {
           toValue: 1,
-          duration: 280,
+          duration: 400,
           useNativeDriver: true,
           easing: Easing.out(Easing.ease),
         }),
         Animated.timing(glowScale, {
           toValue: 1,
-          duration: 360,
+          duration: 450,
           useNativeDriver: true,
-          easing: Easing.out(Easing.ease),
+          easing: Easing.out(Easing.cubic),
         }),
-      ]),
-
-      // Pen drops in smoothly
-      Animated.parallel([
         Animated.timing(penOpacity, {
           toValue: 1,
-          duration: 220,
+          duration: 350,
           useNativeDriver: true,
           easing: Easing.out(Easing.ease),
         }),
-        Animated.spring(penTranslateY, {
-          toValue: 0,
-          tension: 90,
-          friction: 9,
-          useNativeDriver: true,
-        }),
-      ]),
-
-      // Signature stroke fades in
-      Animated.timing(strokeOpacity, {
-        toValue: 1,
-        duration: 250,
-        useNativeDriver: true,
-        easing: Easing.out(Easing.ease),
-      }),
-
-      // Title slides up and fades in
-      Animated.parallel([
-        Animated.timing(titleOpacity, {
+        Animated.timing(penScale, {
           toValue: 1,
-          duration: 220,
+          duration: 350,
           useNativeDriver: true,
-          easing: Easing.out(Easing.ease),
-        }),
-        Animated.spring(titleTranslateY, {
-          toValue: 0,
-          tension: 90,
-          friction: 9,
-          useNativeDriver: true,
+          easing: Easing.out(Easing.cubic),
         }),
       ]),
 
-      // Tagline fades in
-      Animated.timing(taglineOpacity, {
+      // Ink starting point
+      Animated.timing(dotOpacity, {
         toValue: 1,
-        duration: 220,
+        duration: 150,
         useNativeDriver: true,
         easing: Easing.out(Easing.ease),
       }),
+
+      // The signature draws itself, the little tail flick finishing last
+      Animated.parallel([
+        Animated.timing(strokeDraw, {
+          toValue: 0,
+          duration: 650,
+          useNativeDriver: false,
+          easing: Easing.inOut(Easing.cubic),
+        }),
+        Animated.sequence([
+          Animated.delay(500),
+          Animated.timing(tailDraw, {
+            toValue: 0,
+            duration: 180,
+            useNativeDriver: false,
+            easing: Easing.out(Easing.ease),
+          }),
+        ]),
+      ]),
+
+      // Title then tagline softly materialize (fade + subtle scale)
+      Animated.stagger(110, [
+        Animated.parallel([
+          Animated.timing(titleOpacity, {
+            toValue: 1,
+            duration: 420,
+            useNativeDriver: true,
+            easing: Easing.out(Easing.ease),
+          }),
+          Animated.timing(titleScale, {
+            toValue: 1,
+            duration: 420,
+            useNativeDriver: true,
+            easing: Easing.out(Easing.cubic),
+          }),
+        ]),
+        Animated.parallel([
+          Animated.timing(taglineOpacity, {
+            toValue: 1,
+            duration: 420,
+            useNativeDriver: true,
+            easing: Easing.out(Easing.ease),
+          }),
+          Animated.timing(taglineScale, {
+            toValue: 1,
+            duration: 420,
+            useNativeDriver: true,
+            easing: Easing.out(Easing.cubic),
+          }),
+        ]),
+      ]),
 
       // Brief hold
-      Animated.delay(250),
+      Animated.delay(320),
 
       // Fade out everything
       Animated.timing(containerOpacity, {
         toValue: 0,
-        duration: 280,
+        duration: 320,
         useNativeDriver: true,
         easing: Easing.in(Easing.ease),
       }),
@@ -151,9 +193,9 @@ export default function AnimatedSplash({ onAnimationComplete }: AnimatedSplashPr
             </LinearGradient>
           </Defs>
 
-          {/* Pen - wrapped in Animated.View for animation */}
+          {/* Pen */}
           <G transform="translate(142, 28) rotate(-45)">
-            <AnimatedG style={{ opacity: penOpacity }}>
+            <AnimatedG style={{ opacity: penOpacity, transform: [{ scale: penScale }] }}>
               {/* Shaft */}
               <Rect x={-7} y={-42} width={14} height={38} rx={2} fill="url(#penGrad)" />
               {/* Band */}
@@ -165,7 +207,16 @@ export default function AnimatedSplash({ onAnimationComplete }: AnimatedSplashPr
             </AnimatedG>
           </G>
 
-          {/* Signature stroke */}
+          {/* Start dot */}
+          <AnimatedCircle
+            cx={10}
+            cy={130}
+            r={2.5}
+            fill={PURPLE}
+            style={{ opacity: dotOpacity }}
+          />
+
+          {/* Signature stroke — draws on via dash offset */}
           <AnimatedPath
             d="M 10,130 C 40,100 70,90 95,100 C 120,110 110,135 135,125 C 155,117 160,98 178,92"
             stroke="url(#strokeGrad)"
@@ -173,7 +224,8 @@ export default function AnimatedSplash({ onAnimationComplete }: AnimatedSplashPr
             fill="none"
             strokeLinecap="round"
             strokeLinejoin="round"
-            style={{ opacity: strokeOpacity }}
+            strokeDasharray={STROKE_LEN}
+            strokeDashoffset={strokeDraw}
           />
 
           {/* Tail flick */}
@@ -183,16 +235,8 @@ export default function AnimatedSplash({ onAnimationComplete }: AnimatedSplashPr
             strokeWidth={3}
             fill="none"
             strokeLinecap="round"
-            style={{ opacity: strokeOpacity }}
-          />
-
-          {/* Start dot */}
-          <AnimatedCircle
-            cx={10}
-            cy={130}
-            r={2.5}
-            fill={PURPLE}
-            style={{ opacity: strokeOpacity }}
+            strokeDasharray={TAIL_LEN}
+            strokeDashoffset={tailDraw}
           />
         </Svg>
       </View>
@@ -203,7 +247,7 @@ export default function AnimatedSplash({ onAnimationComplete }: AnimatedSplashPr
           styles.titleContainer,
           {
             opacity: titleOpacity,
-            transform: [{ translateY: titleTranslateY }],
+            transform: [{ scale: titleScale }],
           }
         ]}
       >
@@ -212,7 +256,15 @@ export default function AnimatedSplash({ onAnimationComplete }: AnimatedSplashPr
       </Animated.View>
 
       {/* Tagline */}
-      <Animated.Text style={[styles.tagline, { opacity: taglineOpacity }]}>
+      <Animated.Text
+        style={[
+          styles.tagline,
+          {
+            opacity: taglineOpacity,
+            transform: [{ scale: taglineScale }],
+          },
+        ]}
+      >
         SIGN ANYWHERE
       </Animated.Text>
     </Animated.View>
