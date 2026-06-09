@@ -24,6 +24,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { getInfoAsync } from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import DocumentScanner, { ResponseType } from 'react-native-document-scanner-plugin';
 import { HomeScreenProps } from '../types';
 import { useDocumentStore } from '../store/useDocumentStore';
@@ -36,9 +37,15 @@ import { FREE_TIER_LIMITS } from '../config/monetization';
 import BannerAd from '../components/BannerAd';
 import UpgradePrompt from '../components/UpgradePrompt';
 import ActionButton from '../components/ActionButton';
+import ScanGuideModal from '../components/ScanGuideModal';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
+
+// Scan guide is shown the first few camera scans (until learned / dismissed).
+const SCAN_GUIDE_DISMISSED_KEY = 'scanGuideDismissed';
+const SCAN_GUIDE_COUNT_KEY = 'scanGuideSeenCount';
+const SCAN_GUIDE_MAX_SHOWS = 3;
 
 interface ActionCardProps {
   icon: string;
@@ -104,6 +111,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const { showAd, isLoaded: isAdLoaded, isLoading: isAdLoading, error: adError, retryLoad } = useInterstitialAd();
   const { addRewardedAdWatch } = useSubscriptionStore();
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [showScanGuide, setShowScanGuide] = useState(false);
 
   // Shimmer animation for upgrade badge
   const shimmerTranslate = useSharedValue(-100);
@@ -227,12 +235,9 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     }
   };
 
-  const handleUseCamera = async () => {
-    const granted = await requestCameraPermission();
-    if (!granted) return;
-
+  const launchDocumentScanner = useCallback(async () => {
     try {
-      // Try automatic document scanner first - single capture, auto-proceed
+      // Automatic document scanner - auto edge detection + capture
       const result = await DocumentScanner.scanDocument({
         croppedImageQuality: 100,
         maxNumDocuments: 1,
@@ -253,7 +258,47 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       // Go to manual camera as fallback
       navigation.navigate('Camera');
     }
+  }, [navigation]);
+
+  const handleUseCamera = async () => {
+    const granted = await requestCameraPermission();
+    if (!granted) return;
+
+    // Show the scanning guide (which teaches users to tap the ✓ to finish) the
+    // first few times, until they've learned it or opted out.
+    try {
+      const dismissed = await AsyncStorage.getItem(SCAN_GUIDE_DISMISSED_KEY);
+      const seen = parseInt((await AsyncStorage.getItem(SCAN_GUIDE_COUNT_KEY)) ?? '0', 10);
+      if (dismissed === 'true' || seen >= SCAN_GUIDE_MAX_SHOWS) {
+        launchDocumentScanner();
+      } else {
+        setShowScanGuide(true);
+      }
+    } catch {
+      // If storage is unavailable, default to showing the guide.
+      setShowScanGuide(true);
+    }
   };
+
+  const handleScanGuideStart = useCallback(
+    async (dontShowAgain: boolean) => {
+      setShowScanGuide(false);
+      try {
+        if (dontShowAgain) {
+          await AsyncStorage.setItem(SCAN_GUIDE_DISMISSED_KEY, 'true');
+        } else {
+          const seen = parseInt((await AsyncStorage.getItem(SCAN_GUIDE_COUNT_KEY)) ?? '0', 10);
+          await AsyncStorage.setItem(SCAN_GUIDE_COUNT_KEY, String(seen + 1));
+        }
+      } catch {
+        // Non-fatal — proceed to scan regardless.
+      }
+      launchDocumentScanner();
+    },
+    [launchDocumentScanner],
+  );
+
+  const handleScanGuideCancel = useCallback(() => setShowScanGuide(false), []);
 
   const handlePickFromLibrary = async () => {
     const granted = await requestMediaLibraryPermission();
@@ -485,6 +530,13 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           </View>
         </View>
       </Modal>
+
+      {/* Scanning guide — teaches users to tap the ✓ to finish */}
+      <ScanGuideModal
+        visible={showScanGuide}
+        onStart={handleScanGuideStart}
+        onCancel={handleScanGuideCancel}
+      />
     </View>
   );
 }
