@@ -22,6 +22,7 @@ import Animated, {
   Easing,
   FadeIn,
   FadeInUp,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -273,7 +274,7 @@ function AnimatedRing({ delay, size, color }: RingProps) {
 interface SlideProps {
   slide: OnboardingSlide;
   index: number;
-  scrollX: Animated.SharedValue<number>;
+  scrollX: SharedValue<number>;
 }
 
 function Slide({ slide, index, scrollX }: SlideProps) {
@@ -365,7 +366,7 @@ function Slide({ slide, index, scrollX }: SlideProps) {
 
 interface PaginationDotProps {
   index: number;
-  scrollX: Animated.SharedValue<number>;
+  scrollX: SharedValue<number>;
 }
 
 function PaginationDot({ index, scrollX }: PaginationDotProps) {
@@ -408,7 +409,7 @@ function PaginationDot({ index, scrollX }: PaginationDotProps) {
 
 interface PaginationProps {
   slidesCount: number;
-  scrollX: Animated.SharedValue<number>;
+  scrollX: SharedValue<number>;
 }
 
 function Pagination({ slidesCount, scrollX }: PaginationProps) {

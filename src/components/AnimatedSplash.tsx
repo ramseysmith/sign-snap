@@ -20,9 +20,16 @@ const BG = '#0F0F1A';
 const STROKE_LEN = 204;
 const TAIL_LEN = 20;
 
-const AnimatedG = Animated.createAnimatedComponent(G);
+// react-native-svg does not declare `style` on its element prop types, but the
+// native components do accept it. Widen the animated wrappers so the style prop
+// type checks. This is a types only shim and changes no runtime behaviour.
+type Styleable<P> = React.ComponentType<P & { style?: unknown }>;
+
+const AnimatedG = Animated.createAnimatedComponent(G) as Styleable<React.ComponentProps<typeof G>>;
 const AnimatedPath = Animated.createAnimatedComponent(Path);
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const AnimatedCircle = Animated.createAnimatedComponent(Circle) as Styleable<
+  React.ComponentProps<typeof Circle>
+>;
 
 interface AnimatedSplashProps {
   onAnimationComplete?: () => void;
