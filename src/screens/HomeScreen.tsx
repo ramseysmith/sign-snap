@@ -237,11 +237,12 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
   const launchDocumentScanner = useCallback(async () => {
     try {
-      // Automatic document scanner - auto edge detection + capture
+      // Automatic document scanner, auto edge detection and capture.
+      // The plugin dropped letUserAdjustCrop, so its built in crop step can no
+      // longer be suppressed here. Final adjustments happen on ImageCrop below.
       const result = await DocumentScanner.scanDocument({
         croppedImageQuality: 100,
         maxNumDocuments: 1,
-        letUserAdjustCrop: false,
         responseType: ResponseType.ImageFilePath,
       });
 

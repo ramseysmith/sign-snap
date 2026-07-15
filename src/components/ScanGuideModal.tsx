@@ -99,7 +99,7 @@ export default function ScanGuideModal({ visible, onStart, onCancel }: ScanGuide
               <View style={styles.stepTextWrap}>
                 <Text style={styles.stepTitle}>Tap the ✓ to finish</Text>
                 <Text style={styles.stepText}>
-                  This is the important one. When you're done, tap the checkmark (or “Save”)
+                  This is the important one. When you&apos;re done, tap the checkmark (or “Save”)
                   to continue — nothing happens until you do.
                 </Text>
               </View>
@@ -117,7 +117,7 @@ export default function ScanGuideModal({ visible, onStart, onCancel }: ScanGuide
             <View style={[styles.checkbox, dontShowAgain && styles.checkboxChecked]}>
               {dontShowAgain && <Text style={styles.checkboxTick}>✓</Text>}
             </View>
-            <Text style={styles.dontShowText}>Don't show this again</Text>
+            <Text style={styles.dontShowText}>Don&apos;t show this again</Text>
           </Pressable>
 
           <Pressable

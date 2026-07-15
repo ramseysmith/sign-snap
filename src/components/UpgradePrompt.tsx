@@ -98,6 +98,27 @@ export default function UpgradePrompt({
     }
   }, [onUpgrade, navigation]);
 
+  // Banner state. These must be declared before any early return below so the
+  // hook order stays identical across renders when variant changes.
+  const bannerScale = useSharedValue(1);
+
+  const bannerAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: bannerScale.value }],
+  }));
+
+  const handleBannerPressIn = useCallback(() => {
+    bannerScale.value = withSpring(0.98, ANIMATION.springBouncy);
+  }, [bannerScale]);
+
+  const handleBannerPressOut = useCallback(() => {
+    bannerScale.value = withSpring(1, ANIMATION.springBouncy);
+  }, [bannerScale]);
+
+  const handleBannerPress = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    handleUpgradePress();
+  }, [handleUpgradePress]);
+
   // Limit reached variant - shows both options
   if (variant === 'limit-reached') {
     return (
@@ -114,7 +135,7 @@ export default function UpgradePrompt({
           </Text>
         </View>
         <Text style={styles.limitDescription}>
-          You've used your {maxAllowed} free document signings. Choose how to continue:
+          You&apos;ve used your {maxAllowed} free document signings. Choose how to continue:
         </Text>
 
         <AnimatedButton
@@ -212,25 +233,6 @@ export default function UpgradePrompt({
   }
 
   // Banner variant
-  const bannerScale = useSharedValue(1);
-
-  const bannerAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: bannerScale.value }],
-  }));
-
-  const handleBannerPressIn = useCallback(() => {
-    bannerScale.value = withSpring(0.98, ANIMATION.springBouncy);
-  }, [bannerScale]);
-
-  const handleBannerPressOut = useCallback(() => {
-    bannerScale.value = withSpring(1, ANIMATION.springBouncy);
-  }, [bannerScale]);
-
-  const handleBannerPress = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    handleUpgradePress();
-  }, [handleUpgradePress]);
-
   return (
     <AnimatedPressable
       style={[

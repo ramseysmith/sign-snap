@@ -145,6 +145,8 @@ const SignaturePad = forwardRef<SignaturePadRef, SignaturePadProps>(
   }
 );
 
+SignaturePad.displayName = 'SignaturePad';
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
