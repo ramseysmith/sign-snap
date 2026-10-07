@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -24,7 +24,8 @@ import { useDocumentLimit } from '../hooks/useDocumentLimit';
 import { useInterstitialAd } from '../hooks/useInterstitialAd';
 import { useSubscriptionStore } from '../store/useSubscriptionStore';
 import { FREE_TIER_LIMITS } from '../config/monetization';
-import { COLORS, SPACING, FONT_SIZES, SIGNATURE_DEFAULT_SIZE, BORDER_RADIUS } from '../utils/constants';
+import { COLORS, SPACING, FONT_SIZES, SIGNATURE_DEFAULT_SIZE, DATE_STAMP_DEFAULT_SIZE, BORDER_RADIUS } from '../utils/constants';
+import { formatSignDate } from '../utils/helpers';
 
 interface PdfPageInfo {
   width: number;
@@ -71,6 +72,14 @@ export default function PlaceSignatureScreen({
     height: SIGNATURE_DEFAULT_SIZE.height,
   });
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [showDate, setShowDate] = useState(false);
+  const [datePosition, setDatePosition] = useState({
+    x: 0,
+    y: 0,
+    width: DATE_STAMP_DEFAULT_SIZE.width,
+    height: DATE_STAMP_DEFAULT_SIZE.height,
+  });
+  const dateText = useMemo(() => formatSignDate(), []);
   const signatureRef = useRef<SignatureDraggableRef>(null);
 
   const {
@@ -143,6 +152,41 @@ export default function PlaceSignatureScreen({
     []
   );
 
+  const handleDatePositionChange = useCallback(
+    (x: number, y: number, width: number, height: number) => {
+      setDatePosition({ x, y, width, height });
+    },
+    []
+  );
+
+  const handleToggleDate = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (showDate) {
+      setShowDate(false);
+      return;
+    }
+
+    // Start the date just below the signature, or above it if there is no room
+    const renderedInfo = getRenderedPdfInfo();
+    if (renderedInfo) {
+      const { width: dw, height: dh } = DATE_STAMP_DEFAULT_SIZE;
+      const gap = SPACING.sm;
+      const maxX = Math.max(0, renderedInfo.renderedWidth - dw);
+      const maxY = Math.max(0, renderedInfo.renderedHeight - dh);
+      let y = signaturePosition.y + signaturePosition.height + gap;
+      if (y > maxY) {
+        y = signaturePosition.y - dh - gap;
+      }
+      setDatePosition({
+        x: Math.min(Math.max(signaturePosition.x, 0), maxX),
+        y: Math.min(Math.max(y, 0), maxY),
+        width: dw,
+        height: dh,
+      });
+    }
+    setShowDate(true);
+  };
+
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
@@ -183,7 +227,10 @@ export default function PlaceSignatureScreen({
         currentDocumentUri,
         signatureBase64,
         placement,
-        renderedDimensions
+        renderedDimensions,
+        showDate
+          ? { text: dateText, placement: { ...datePosition, pageIndex: currentPage } }
+          : undefined
       );
 
       navigation.navigate('FinalPreview', {
@@ -314,7 +361,7 @@ export default function PlaceSignatureScreen({
     <View style={styles.container}>
       <View style={styles.instructionContainer}>
         <Text style={styles.instruction}>
-          Drag signature to position • Pinch signature to resize
+          Drag to position • Pinch to resize • Tap + Date to stamp the date
         </Text>
       </View>
 
@@ -362,6 +409,18 @@ export default function PlaceSignatureScreen({
                 initialHeight={SIGNATURE_DEFAULT_SIZE.height}
                 onPositionChange={handlePositionChange}
               />
+              {showDate && (
+                <SignatureDraggable
+                  text={dateText}
+                  containerWidth={renderedInfo.renderedWidth}
+                  containerHeight={renderedInfo.renderedHeight}
+                  initialX={datePosition.x}
+                  initialY={datePosition.y}
+                  initialWidth={DATE_STAMP_DEFAULT_SIZE.width}
+                  initialHeight={DATE_STAMP_DEFAULT_SIZE.height}
+                  onPositionChange={handleDatePositionChange}
+                />
+              )}
             </View>
           );
         })()}
@@ -395,6 +454,17 @@ export default function PlaceSignatureScreen({
             <Text style={styles.sizeButtonText}>+</Text>
           </Pressable>
         </View>
+        <Pressable
+          style={[styles.dateToggle, showDate && styles.dateToggleActive]}
+          onPress={handleToggleDate}
+          accessibilityLabel="Add today's date"
+          accessibilityRole="switch"
+          accessibilityState={{ checked: showDate }}
+        >
+          <Text style={styles.dateToggleText}>
+            {showDate ? '✓ Date' : '+ Date'}
+          </Text>
+        </Pressable>
       </View>
 
       <View style={styles.footer}>
@@ -521,6 +591,25 @@ const styles = StyleSheet.create({
   },
   sizeButtonText: {
     fontSize: 22,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  dateToggle: {
+    height: 40,
+    paddingHorizontal: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.surfaceLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  dateToggleActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  dateToggleText: {
+    fontSize: FONT_SIZES.sm,
     fontWeight: '600',
     color: COLORS.text,
   },

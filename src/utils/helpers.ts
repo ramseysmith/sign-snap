@@ -73,3 +73,22 @@ export function clamp(value: number, min: number, max: number): number {
 export function sanitizeFileName(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]/g, '_');
 }
+
+// Today's date for date stamps. Uses the device locale's numeric format when it
+// is plain ASCII (the PDF standard font cannot encode other scripts), else ISO.
+export function formatSignDate(date: Date = new Date()): string {
+  try {
+    const localized = date.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    if (/^[\x20-\x7E]+$/.test(localized)) {
+      return localized;
+    }
+  } catch {
+    // Fall through to ISO
+  }
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}

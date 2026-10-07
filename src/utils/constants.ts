@@ -108,6 +108,14 @@ export const SIGNATURE_DEFAULT_SIZE = {
   height: 100,
 };
 
+export const DATE_STAMP_DEFAULT_SIZE = {
+  width: 140,
+  height: 32,
+};
+
+// Date stamp font size as a fraction of its box height (UI preview and PDF)
+export const DATE_STAMP_FONT_RATIO = 0.6;
+
 export const DOCUMENT_DIRECTORY = 'signed_documents';
 
 // Monetization
