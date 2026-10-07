@@ -18,6 +18,7 @@ A document signing app built with Expo and React Native. Scan or upload document
 
 ### Signing Experience
 - **Place & Resize** - Drag and pinch to position your signature perfectly
+- **Date Stamp**: Add today's date with one tap, then drag it into the form's date field
 - **Landscape Mode** - Rotate to landscape for easier drawing
 - **Visual Guides** - X and signature line for proper placement
 - **Share & Save** - Export via native share sheet or save to your library

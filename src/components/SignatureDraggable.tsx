@@ -1,5 +1,5 @@
 import React, { useEffect, useImperativeHandle, forwardRef } from 'react';
-import { StyleSheet, Image, View } from 'react-native';
+import { StyleSheet, Image, View, Platform } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -8,7 +8,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { COLORS, SIGNATURE_DEFAULT_SIZE, BORDER_RADIUS, ANIMATION } from '../utils/constants';
+import { COLORS, SIGNATURE_DEFAULT_SIZE, BORDER_RADIUS, ANIMATION, DATE_STAMP_FONT_RATIO } from '../utils/constants';
 
 // Inline worklet function for clamping values
 const clamp = (value: number, min: number, max: number): number => {
@@ -21,7 +21,9 @@ const MAX_SCALE = 3;
 const SCALE_STEP = 0.15;
 
 interface SignatureDraggableProps {
-  signatureBase64: string;
+  signatureBase64?: string;
+  // When set, renders this text (a date stamp) instead of the signature image
+  text?: string;
   containerWidth: number;
   containerHeight: number;
   initialX?: number;
@@ -38,6 +40,7 @@ export interface SignatureDraggableRef {
 
 const SignatureDraggable = forwardRef<SignatureDraggableRef, SignatureDraggableProps>(function SignatureDraggable({
   signatureBase64,
+  text,
   containerWidth,
   containerHeight,
   initialX = 50,
@@ -167,15 +170,29 @@ const SignatureDraggable = forwardRef<SignatureDraggableRef, SignatureDraggableP
     height: currentHeight.value,
   }));
 
+  const animatedTextStyle = useAnimatedStyle(() => ({
+    fontSize: currentHeight.value * DATE_STAMP_FONT_RATIO,
+  }));
+
   return (
     <GestureDetector gesture={composedGestures}>
       <Animated.View style={[styles.container, animatedStyle]}>
         <View style={styles.signatureWrapper}>
-          <Image
-            source={{ uri: signatureBase64 }}
-            style={styles.signature}
-            resizeMode="contain"
-          />
+          {text !== undefined ? (
+            <Animated.Text
+              style={[styles.stampText, animatedTextStyle]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              {text}
+            </Animated.Text>
+          ) : (
+            <Image
+              source={{ uri: signatureBase64 }}
+              style={styles.signature}
+              resizeMode="contain"
+            />
+          )}
         </View>
         <View style={styles.resizeHandle} />
       </Animated.View>
@@ -204,6 +221,11 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     backgroundColor: 'transparent',
+  },
+  stampText: {
+    color: '#000000',
+    fontFamily: Platform.select({ ios: 'Helvetica', default: undefined }),
+    textAlign: 'center',
   },
   resizeHandle: {
     position: 'absolute',

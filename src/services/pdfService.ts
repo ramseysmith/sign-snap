@@ -5,10 +5,11 @@ import {
   EncodingType,
 } from 'expo-file-system/legacy';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { decode as base64Decode, encode as base64Encode } from 'base-64';
 import { PdfDimensions, ViewDimensions, SignaturePlacement } from '../types';
 import { uiToPdfCoordinates } from '../utils/helpers';
+import { DATE_STAMP_FONT_RATIO } from '../utils/constants';
 
 // Polyfill for atob/btoa which pdf-lib needs
 if (typeof global.atob === 'undefined') {
@@ -65,11 +66,17 @@ export async function getPdfPageDimensions(
   }
 }
 
+export interface DateStamp {
+  text: string;
+  placement: SignaturePlacement;
+}
+
 export async function embedSignatureOnPdf(
   pdfUri: string,
   signatureBase64: string,
   placement: SignaturePlacement,
-  viewDimensions: ViewDimensions
+  viewDimensions: ViewDimensions,
+  dateStamp?: DateStamp
 ): Promise<string> {
   try {
     // Read the PDF
@@ -131,6 +138,32 @@ export async function embedSignatureOnPdf(
       width: finalWidth,
       height: finalHeight,
     });
+
+    if (dateStamp) {
+      const datePage = pdfDoc.getPage(dateStamp.placement.pageIndex);
+      const box = uiToPdfCoordinates(
+        dateStamp.placement.x,
+        dateStamp.placement.y,
+        dateStamp.placement.width,
+        dateStamp.placement.height,
+        viewDimensions,
+        datePage.getSize()
+      );
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      // Match the preview: size from box height, shrink if the text is too wide
+      const widthAtOne = font.widthOfTextAtSize(dateStamp.text, 1);
+      const fontSize = Math.min(box.height * DATE_STAMP_FONT_RATIO, box.width / widthAtOne);
+      const textWidth = font.widthOfTextAtSize(dateStamp.text, fontSize);
+      const textHeight = font.heightAtSize(fontSize, { descender: false });
+
+      datePage.drawText(dateStamp.text, {
+        x: box.x + (box.width - textWidth) / 2,
+        y: box.y + (box.height - textHeight) / 2,
+        size: fontSize,
+        font,
+        color: rgb(0, 0, 0),
+      });
+    }
 
     // Save the modified PDF
     const modifiedPdfBytes = await pdfDoc.save();
