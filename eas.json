@@ -28,7 +28,8 @@
     "production": {
       "ios": {
         "appleId": "smith.s.ramsey@gmail.com",
-        "ascAppId": "6759199184"
+        "ascAppId": "6759199184",
+        "metadataPath": "./store.config.js"
       }
     }
   }
