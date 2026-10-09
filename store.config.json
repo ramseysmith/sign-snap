@@ -1,0 +1,95 @@
+{
+  "configVersion": 0,
+  "apple": {
+    "version": "1.6.0",
+    "copyright": "Graysmith.inc",
+    "release": {
+      "automaticRelease": true
+    },
+    "info": {
+      "en-US": {
+        "description": "Sign for FREE!\n\nSay goodbye to printing, signing, and scanning. Sign Snap turns your iPhone into a powerful document signing tool that gets paperwork done in seconds, not hours.\nWhether you need to sign a lease, approve an invoice, or return a permission slip, Sign Snap makes it effortless. Scan any physical document with your camera or import an existing PDF, then add your signature with a few taps. Done.\n\nCREATE YOUR PERFECT SIGNATURE\nDraw your signature with your finger or Apple Pencil for a truly personal touch. Prefer a polished look? Choose from elegant script fonts and type your name. You can even snap a photo of your existing ink signature. Save as many signatures as you need and reuse them anytime.\n\nSCAN & IMPORT WITH EASE\nUse your phone camera to scan physical documents instantly. The built in scanner auto detects edges and optimizes for clarity. Already have a digital file? Import PDFs directly from your Files app, email, or any other source.\n\nPLACE SIGNATURES WITH PRECISION\nDrag your signature exactly where it needs to go. Pinch to resize. Rotate to match the document angle. Every signed document looks clean and professional.\n\nEXPORT & SHARE INSTANTLY\nSave your signed documents as high quality PDFs. Share via email, Messages, AirDrop, or any app on your device. Keep a local copy on your phone for your records.\n\nBUILT FOR SPEED\nNo account creation required. No cloud uploads. No waiting. Open the app, sign your document, and move on with your day. Your documents stay on your device, giving you complete privacy and control.\n\nFREE TO START\nSign up to 2 documents completely free. Need more? Upgrade to Sign Snap Premium for unlimited signings and an ad free experience.\n\nPREMIUM SUBSCRIPTION\n  Subscription Terms:                                                           \n  • Payment will be charged to your Apple ID account at confirmation of purchase\n  • Subscription automatically renews unless canceled at least 24 hours before  \n  the end of the current period                                                 \n  • Your account will be charged for renewal within 24 hours prior to the end of\n   the current period                                                           \n  • You can manage and cancel your subscriptions by going to your App Store     \n  account settings after purchase                                               \n                                                                                \nTerms of Use (EULA):  https://www.apple.com/legal/internet-services/itunes/dev/stdeula/             \nPrivacy Policy: https://ramseysmith.github.io/signsnap/privacy.html \n\nSign Snap Premium unlocks unlimited document signings and removes all advertisements. Subscription options include weekly, monthly, and yearly plans. Payment is charged to your Apple ID account at confirmation of purchase. Your subscription automatically renews unless canceled at least 24 hours before the end of the current period. You can manage or cancel your subscription anytime in your Apple ID account settings. For full details, see our Terms of Use and Privacy Policy.\n\n\n",
+        "keywords": [
+          "esign",
+          "signature",
+          "sign document",
+          "pdf signer",
+          "scan",
+          "digital signature",
+          "esignature",
+          "docusign",
+          "paperless"
+        ],
+        "releaseNotes": "\nWe've polished SignSnap from open to sign-off:\n\n• New guided onboarding shows you exactly how it works — add a document, sign, and share in three simple steps.\n• Added a Photo Library shortcut on the home screen, so importing an existing photo to sign is now one tap.\n• Fixed cropping for photos from your library — your crop now lines up perfectly every time.\n• New scanning tips help first-time users finish a scan without getting stuck.\n• Your saved documents now show the correct date they were signed.\n• Shared PDFs now use clean, readable filenames.\n• Faster app launch and a refreshed splash screen.\n• Improved accessibility and lots of small fixes for a smoother experience.\n\nThanks for using SignSnap! Loving the app? A quick rating really helps.",
+        "marketingUrl": "https://ramseysmith.github.io/signsnap/",
+        "promoText": "Sign any document in seconds for free — no printer, no scanner. Scan, import, or snap a photo, add your signature, and share a signed PDF right from your phone.",
+        "supportUrl": "https://ramseysmith.github.io/signsnap/support.html",
+        "title": "SignSnap",
+        "subtitle": "Scan, Sign & Share PDFs Fast",
+        "privacyPolicyUrl": "https://ramseysmith.github.io/signsnap/privacy.html",
+        "screenshots": {
+          "APP_IPHONE_67": [
+            "store/apple/screenshot/en-US/APP_IPHONE_67/Simulator Screenshot - iPhone 17 Pro Max - 2026-06-09 at 11.49.20.png",
+            "store/apple/screenshot/en-US/APP_IPHONE_67/Simulator Screenshot - iPhone 17 Pro Max - 2026-06-09 at 11.53.08.png",
+            "store/apple/screenshot/en-US/APP_IPHONE_67/Simulator Screenshot - iPhone 17 Pro Max - 2026-06-09 at 11.53.14.png",
+            "store/apple/screenshot/en-US/APP_IPHONE_67/Simulator Screenshot - iPhone 17 Pro Max - 2026-06-09 at 11.53.20.png",
+            "store/apple/screenshot/en-US/APP_IPHONE_67/Simulator Screenshot - iPhone 17 Pro Max - 2026-06-09 at 11.53.27.png",
+            "store/apple/screenshot/en-US/APP_IPHONE_67/Simulator Screenshot - iPhone 17 Pro Max - 2026-06-09 at 11.53.36.png",
+            "store/apple/screenshot/en-US/APP_IPHONE_67/screenshot_8.png",
+            "store/apple/screenshot/en-US/APP_IPHONE_67/screenshot_9.png",
+            "store/apple/screenshot/en-US/APP_IPHONE_67/screenshot_1.png"
+          ],
+          "APP_IPAD_PRO_3GEN_129": [
+            "store/apple/screenshot/en-US/APP_IPAD_PRO_3GEN_129/01_Onboarding_SaveTime.png",
+            "store/apple/screenshot/en-US/APP_IPAD_PRO_3GEN_129/02_Onboarding_EasySignatures.png",
+            "store/apple/screenshot/en-US/APP_IPAD_PRO_3GEN_129/03_Onboarding_PowerInPocket.png",
+            "store/apple/screenshot/en-US/APP_IPAD_PRO_3GEN_129/04_MySignatures.png",
+            "store/apple/screenshot/en-US/APP_IPAD_PRO_3GEN_129/05_DrawSignature.png",
+            "store/apple/screenshot/en-US/APP_IPAD_PRO_3GEN_129/06_Premium.png"
+          ]
+        }
+      }
+    },
+    "categories": [
+      "BUSINESS",
+      "PRODUCTIVITY"
+    ],
+    "advisory": {
+      "ageRatingOverride": "NONE",
+      "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+      "contests": "NONE",
+      "gambling": false,
+      "gamblingSimulated": "NONE",
+      "horrorOrFearThemes": "NONE",
+      "kidsAgeBand": null,
+      "koreaAgeRatingOverride": "NONE",
+      "lootBox": false,
+      "matureOrSuggestiveThemes": "NONE",
+      "medicalOrTreatmentInformation": "NONE",
+      "profanityOrCrudeHumor": "NONE",
+      "sexualContentGraphicAndNudity": "NONE",
+      "sexualContentOrNudity": "NONE",
+      "unrestrictedWebAccess": false,
+      "violenceCartoonOrFantasy": "NONE",
+      "violenceRealistic": "NONE",
+      "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+      "advertising": true,
+      "ageAssurance": false,
+      "ageRatingOverrideV2": "NONE",
+      "developerAgeRatingInfoUrl": null,
+      "gunsOrOtherWeapons": "NONE",
+      "healthOrWellnessTopics": false,
+      "messagingAndChat": false,
+      "parentalControls": false,
+      "userGeneratedContent": false
+    },
+    "review": {
+      "firstName": "Ramsey",
+      "lastName": "Graysmith",
+      "email": "smith.s.ramsey@gmail.com",
+      "phone": "7208226609",
+      "demoRequired": false,
+      "notes": "Sign Snap is a document signing app that works entirely offline with no account or login required. Here is how to test the full flow:\n\nOpen the app and tap \"Scan Document\" to use the camera, or tap \"Import PDF\" to select a file from the Files app.\nOnce a document is loaded, tap \"Add Signature\" to create a signature. You can draw with your finger, type your name (script fonts are available), or photograph an existing signature.\nDrag and pinch the signature to position and resize it on the document.\nTap \"Export\" to save or share the signed PDF.\n\nFree users get 2 document signings. After that, the app prompts an upgrade to Sign Snap Premium (weekly, monthly, or yearly subscription). Ads are displayed via Google AdMob on the free tier and are removed for Premium subscribers.\nNo demo account is needed as there is no login or account system. All data is stored locally on device. The app requests camera access for document scanning and signature capture only.\n\nThe app uses RevenueCat to manage subscriptions and Google AdMob for advertising on the free tier. The App Tracking Transparency prompt is presented before any ad tracking occurs."
+    }
+  }
+}
